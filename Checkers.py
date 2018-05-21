@@ -5,7 +5,9 @@ import scipy.io as sio
 from scipy import optimize
 import numpy as np
 from initializeBoard import initializeBoard
+from Board import Board
 
-Board = initializeBoard()
+board = Board()
+board.start_game()
 
-print(Board)
+print(board.state)
