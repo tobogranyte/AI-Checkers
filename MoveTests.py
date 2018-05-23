@@ -9,11 +9,6 @@ from Piece import Piece
 
 board = Board()
 board.start_game()
-board.test_setup()
 
-print(board.red_state())
-
-piece = Piece("Black", king = False, x = 0, y = 4)
-
-print(piece.legal_moves(board))
+piece = Piece("Red", king = False, xPosition = 0, yPosition = 1)
 
