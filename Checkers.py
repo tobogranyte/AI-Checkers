@@ -9,11 +9,21 @@ from Piece import Piece
 
 board = Board()
 board.start_game()
-board.test_setup()
 
-print(board.red_state())
+board.visual_state()
+print(board.red_numbers())
 
-piece = Piece("Black", king = False, x = 0, y = 4)
+board.move_piece("Red", 10, 1)
 
-print(piece.legal_moves(board))
+board.visual_state()
+print(board.red_numbers())
 
+board.move_piece("Black", 8, 1)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 10, 1)
+
+board.visual_state()
+print(board.red_numbers())

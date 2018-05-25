@@ -2,24 +2,40 @@ import numpy as np
 
 class Piece:
 
-	def __init__(self, color, king = False, x = 0, y = 0):
+	def __init__(self, number, color, king = False, x = 0, y = 0, in_play = True):
 		self.xPosition = x
 		self.yPosition = y
-		self.flatten_position()
+		self.number = number
 		self.color = color
+		self.king = king
+		self.in_play = in_play
+		self.flatten_position()
+
+		# Generate an array for this piece which will be able to map z values to whatever board position this piece occupies
+		self.position_array = np.array([(self.color == "Red") and not (self.king), (self.color == "Red") and self.king, (self.color == "Black") and not (self.king), (self.color == "Black") and self.king]) * 1 * self.in_play
+
+	# def place_piece(board)
+
 
 	def flatten_position(self):
-		# return a scalar integer reflecting which of the board's
-		# 32 positinos the piece occupies
-		# bottom left (z, 7, 0) maps to position 0
+		# return a flattened array with 32 elements reflecting 
+		# 32 positinos on the board. The bottom left (z, 7, 0)
+		# maps to position 0. All will be 0s except the position
+		# where the piece is, which will be 1. Bottom left is always
+		# bottom left of a board oriented with player's (red or black) home side
+		# facing the player.
 
 		self.flattened_position = np.zeros((32,1), dtype = int)
 		self.flattened_position[(7 - self.yPosition) * 4 + self.xPosition] = 1
 
 	def legal_moves(self, board):
-		return np.array([[self.forward_left(board), self.forward_right(board)], [self.backward_left(board), self.backward_right(board)]])
-		#position the board to have the correct color "facing" the player
+		m = np.zeros(4, dtype = int).reshape(2,2)
 
+		m[0, :] = np.array([self.forward_left(board), self.forward_right(board)])
+		if self.king:
+			m[1, :] = np.array([self.backward_left(board), self.backward_right(board)])
+
+		return m
 
 	def forward_left(self, board):
 		if self.yPosition%2 == 0: # even row
