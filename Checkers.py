@@ -27,3 +27,124 @@ board.move_piece("Red", 10, 1)
 
 board.visual_state()
 print(board.red_numbers())
+
+board.move_piece("Black", 9, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 9, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 4, 1)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 4, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 1, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 1, 1)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 10, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 10, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 10, 3)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 10, 2)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 10, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 11, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 6, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 6, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 2, 1)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 2, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 9, 1)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 9, 1)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 9, 1)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Red", 6, 0)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 9, 2)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 9, 3)
+
+board.visual_state()
+print(board.red_numbers())
+
+board.move_piece("Black", 9, 2)
+
+board.visual_state()
+print(board.red_numbers())
+
+for p in board.red_piece:
+	print(p.color, p.number, p.in_play)
+
+for p in board.black_piece:
+	print(p.color, p.number, p.in_play)

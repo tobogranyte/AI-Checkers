@@ -12,9 +12,11 @@ class Piece:
 		self.flatten_position()
 
 		# Generate an array for this piece which will be able to map z values to whatever board position this piece occupies
-		self.position_array = np.array([(self.color == "Red") and not (self.king), (self.color == "Red") and self.king, (self.color == "Black") and not (self.king), (self.color == "Black") and self.king]) * 1 * self.in_play
-
+		self.update_position_array()
 	# def place_piece(board)
+
+	def update_position_array(self):
+		self.position_array = np.array([(self.color == "Red") and not (self.king), (self.color == "Red") and self.king, (self.color == "Black") and not (self.king), (self.color == "Black") and self.king]) * 1 * self.in_play
 
 
 	def flatten_position(self):
@@ -30,12 +32,16 @@ class Piece:
 
 	def legal_moves(self, board):
 		m = np.zeros(4, dtype = int).reshape(2,2)
-
-		m[0, :] = np.array([self.forward_left(board), self.forward_right(board)])
-		if self.king:
-			m[1, :] = np.array([self.backward_left(board), self.backward_right(board)])
+		if self.in_play:
+			m[0, :] = np.array([self.forward_left(board), self.forward_right(board)])
+			if self.king:
+				m[1, :] = np.array([self.backward_left(board), self.backward_right(board)])
 
 		return m
+
+	def make_king(self):
+		self.king = True
+		self.update_position_array()
 
 	def forward_left(self, board):
 		if self.yPosition%2 == 0: # even row

@@ -52,6 +52,13 @@ class Board:
 			self.black_state()[:, 7 - piece.yPosition, piece.xPosition] = piece.position_array
 			self.black_numbers()[7 - piece.yPosition, piece.xPosition] = piece.number
 
+	def king_piece(self, piece):
+		piece.make_king()
+		if piece.color == "Red":
+			self.red_state()[:, 7 - piece.yPosition, piece.xPosition] = piece.position_array
+		elif piece.color == "Black":
+			self.black_state()[:, 7 - piece.yPosition, piece.xPosition] = piece.position_array
+
 	def remove_piece(self, piece):
 		if piece.color == "Red":
 			self.red_state()[:, 7 - piece.yPosition, piece.xPosition] = np.zeros(4, dtype = int)
@@ -91,6 +98,8 @@ class Board:
 		piece.xPosition = xDest
 		state[:, 7 - piece.yPosition, piece.xPosition] = piece.position_array
 		numbers[7 - piece.yPosition, piece.xPosition] = piece.number
+		if piece.yPosition == 7:
+			self.king_piece(piece)
 
 	# return array in a given x, y position from the vantage point of player
 	def position(self, y, x, player):
