@@ -18,6 +18,11 @@ class Piece:
 	def update_position_array(self):
 		self.position_array = np.array([(self.color == "Red") and not (self.king), (self.color == "Red") and self.king, (self.color == "Black") and not (self.king), (self.color == "Black") and self.king]) * 1 * self.in_play
 
+	def number_one_hot(self):
+		one_hot = np.zeros((12), int)
+		one_hot[self.number] = 1
+		return one_hot
+
 
 	def flatten_position(self):
 		# return a flattened array with 32 elements reflecting 
@@ -31,11 +36,11 @@ class Piece:
 		self.flattened_position[(7 - self.yPosition) * 4 + self.xPosition] = 1
 
 	def legal_moves(self, board):
-		m = np.zeros(4, dtype = int).reshape(2,2)
-		if self.in_play:
-			m[0, :] = np.array([self.forward_left(board), self.forward_right(board)])
+		m = np.zeros(4, dtype = int).reshape(2,2) # default 2x2 matrix is all zeros until a move is deterimined
+		if self.in_play: # piece is still on the board
+			m[0, :] = np.array([self.forward_left(board), self.forward_right(board)]) # update values for forward moves
 			if self.king:
-				m[1, :] = np.array([self.backward_left(board), self.backward_right(board)])
+				m[1, :] = np.array([self.backward_left(board), self.backward_right(board)]) # update values for backward moves if piece is king
 
 		return m
 
@@ -43,7 +48,7 @@ class Piece:
 		self.king = True
 		self.update_position_array()
 
-	def forward_left(self, board):
+	def forward_left(self, board): # determine move value for forward left (0 = illegal, 1 = move, 2 = jump)
 		if self.yPosition%2 == 0: # even row
 			if self.xPosition == 0: # leftmost position
 				return 0 # can't move forward left
@@ -84,7 +89,7 @@ class Piece:
 				else:
 					return 1
 
-	def forward_right(self, board):
+	def forward_right(self, board): # determine move value for forward right (0 = illegal, 1 = move, 2 = jump)
 		if self.yPosition%2 != 0: # odd row
 			if  self.yPosition == 7: # last row
 				return 0 # no possible forward moves
@@ -120,7 +125,7 @@ class Piece:
 				else:
 					return 1
 
-	def backward_left(self, board):
+	def backward_left(self, board): # determine move value for backward left (0 = illegal, 1 = move, 2 = jump)
 		if self.yPosition%2 == 0: # even row
 			if  self.yPosition == 0: # even and first row
 				return 0 # no possible backward moves
@@ -162,7 +167,7 @@ class Piece:
 				else:
 					return 1
 
-	def backward_right(self, board):
+	def backward_right(self, board): # determine move value for backward right (0 = illegal, 1 = move, 2 = jump)
 		if self.yPosition%2 != 0: # odd row
 			if self.xPosition == 3: # odd and rightmost position
 				return 0 # can't move backward right

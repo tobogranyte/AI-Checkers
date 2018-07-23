@@ -4,8 +4,8 @@ from Piece import Piece
 class Board:
 
 	def __init__(self):
-		self.state = np.zeros((4, 8, 4), int)
-		self.numbers = np.zeros((8, 4), int) - 1
+		self.state = np.zeros((4, 8, 4), int) #set all board positions to [0,0,0,0] vectors
+		self.numbers = np.zeros((8, 4), int) - 1 
 		print("Initialize")
 
 	def start_game(self):
@@ -17,14 +17,28 @@ class Board:
 			self.black_piece.append(Piece(p, "Black", king = False, x = p%4, y = int(p/4), in_play = True))
 			self.place_piece(self.black_piece[p])
 
-	def red_state(self):
+	def red_state(self): # return the objective board state
 		return self.state
+
+	def red_flattened_home_view(self): # return the red state view flattened for the model
+		return self.state.flatten()
 
 	def red_numbers(self):
 		return self.numbers
 
-	def black_state(self):
+	def black_state(self): # return the board state viewed "from the other side of the board"
 		return np.flip(np.flip(self.state, axis = 1), axis = 2)
+
+	def black_flattened_home_view(self): 
+		# return the black state view ("from the other side of the board"), and with the red/black
+		# dimension flipped, and then everything flattened for the model. This is so that no matter what
+		# model I'm training, even if I'm training the same model to play both sides, I can present
+		# an entirely red/black neutral version of the game. The model simply learns its home side and
+		# home pieces regardless of red/black. Essentially, this switches the red/black grid so even though
+		# it's nominally playing black, to the model, their pieces are always red.
+		state = self.black_state()
+		return np.append(state[2:,:,:], state[:2,:,:], axis = 0).flatten()
+
 
 	def black_numbers(self):
 		return np.flip(np.flip(self.numbers, axis = 0), axis = 1)
@@ -68,22 +82,23 @@ class Board:
 			self.black_numbers()[7 - piece.yPosition, piece.xPosition] = -1
 		piece.in_play = False
 
+	# move a piece from one position to another
 	def move_piece(self, color, number, move):
-		if color == "Red":
-			piece = self.red_piece[number]
-			other_piece = self.black_piece
-			state = self.red_state()
-			numbers = self.red_numbers()
-		else:
-			piece = self.black_piece[number]
-			other_piece = self.red_piece
-			state = self.black_state()
-			numbers = self.black_numbers()
-		m = piece.legal_moves(self).flatten()[move]
-		y1 = int(move / 2) * (-2) + 1
-		yDest = piece.yPosition + (y1) * m
+		if color == "Red": # set the stage for a red move
+			piece = self.red_piece[number] # set the piece to move
+			opposition_piece = self.black_piece # set the opposition positions
+			state = self.red_state() # set the opposition positions
+			numbers = self.red_numbers() # set the array with all the red piece number positions
+		else: # set the stage for a black move
+			piece = self.black_piece[number] # set the stage for a red move
+			opposition_piece = self.red_piece # set the piece to move
+			state = self.black_state() # set the opposition positions
+			numbers = self.black_numbers() # set the array with all the black piece number positions
+		m = piece.legal_moves(self).flatten()[move] # retrieve the value for the move chosen (0 for illegal, 1 for move, 2 for jump)
+		y1 = int(move / 2) * (-2) + 1 # 
+		yDest = piece.yPosition + (y1) * m # destination y position
 		x1 = move%2 + piece.yPosition % 2 - 1
-		xDest = piece.xPosition + (x1 + ((move % 2 + ((piece.yPosition + 1 ) % 2 - 1)) * (m - 1))) * (m == 1 or m == 2)
+		xDest = piece.xPosition + (x1 + ((move % 2 + ((piece.yPosition + 1 ) % 2 - 1)) * (m - 1))) * (m == 1 or m == 2) # destination x position
 		print("Shift: ", piece.yPosition % 2 - 1)
 		print("x1: ", x1)
 		print("y1: ", y1)
@@ -91,7 +106,7 @@ class Board:
 		print("x: ", piece.xPosition + x1)
 		print("y: ", 7 - piece.yPosition + y1)
 		if m == 2:
-			self.remove_piece(other_piece[numbers[7 - (piece.yPosition + y1), piece.xPosition + x1]])
+			self.remove_piece(opposition_piece[numbers[7 - (piece.yPosition + y1), piece.xPosition + x1]])
 		state[:, 7 - piece.yPosition, piece.xPosition] = np.zeros(4, dtype=int)
 		numbers[7 - piece.yPosition, piece.xPosition] = -1
 		piece.yPosition = yDest
