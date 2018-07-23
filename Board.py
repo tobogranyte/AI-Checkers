@@ -20,8 +20,8 @@ class Board:
 	def red_state(self): # return the objective board state
 		return self.state
 
-	def red_flattened_home_view(self): # return the red state view flattened for the model
-		return self.state.flatten()
+	def red_home_view(self): # return the red state view of the board for the model
+		return self.state
 
 	def red_numbers(self):
 		return self.numbers
@@ -29,15 +29,15 @@ class Board:
 	def black_state(self): # return the board state viewed "from the other side of the board"
 		return np.flip(np.flip(self.state, axis = 1), axis = 2)
 
-	def black_flattened_home_view(self): 
+	def black_home_view(self): 
 		# return the black state view ("from the other side of the board"), and with the red/black
-		# dimension flipped, and then everything flattened for the model. This is so that no matter what
+		# dimension flipped for the model. This is so that no matter what
 		# model I'm training, even if I'm training the same model to play both sides, I can present
 		# an entirely red/black neutral version of the game. The model simply learns its home side and
 		# home pieces regardless of red/black. Essentially, this switches the red/black grid so even though
 		# it's nominally playing black, to the model, their pieces are always red.
 		state = self.black_state()
-		return np.append(state[2:,:,:], state[:2,:,:], axis = 0).flatten()
+		return np.append(state[2:,:,:], state[:2,:,:], axis = 0)
 
 
 	def black_numbers(self):
