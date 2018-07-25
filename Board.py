@@ -3,12 +3,11 @@ from Piece import Piece
 
 class Board:
 
-	def __init__(self):
+	def __init__(self): # blank board: no pieces
 		self.state = np.zeros((4, 8, 4), int) #set all board positions to [0,0,0,0] vectors
 		self.numbers = np.zeros((8, 4), int) - 1 
-		print("Initialize")
 
-	def start_game(self):
+	def setup(self): # set up all pieces in starting positions
 		self.red_piece = []
 		self.black_piece = []
 		for p in range (0,12):
