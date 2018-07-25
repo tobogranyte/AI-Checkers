@@ -1,5 +1,5 @@
 import numpy as np
 import Board as Board
 
-class Agent:
+class Player:
 	print("Hello world!")

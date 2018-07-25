@@ -6,7 +6,7 @@ from scipy import optimize
 import numpy as np
 from Board import Board
 from Piece import Piece
-from Agent import Agent
+from Player import Player
 
 board = Board()
 board.start_game()
