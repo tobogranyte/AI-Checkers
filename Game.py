@@ -1,6 +1,11 @@
 import numpy as np
 from Board import Board
 
+# Game class manages all game mechanics. The main program creates a new game,
+# assigns players to the game (which have already been given models), and issues the
+# [name TDB] command to play a game. The game then returns all relevant data
+# from the game once it's complete.
+
 class Game:
 
 	def __init__(self):
