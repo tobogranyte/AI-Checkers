@@ -5,7 +5,7 @@ class RandomMovesModel:
 	def __init__(self):
 		print("Hello model world!")
 
-	def move(self, board, jump_piece_number = None):
+	def move(self, board, color, jump_piece_number = None):
 		move = np.random.randint(48)
 		one_hot_move = np.eye(48, dtype = 'int')[move]
 

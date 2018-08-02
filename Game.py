@@ -15,25 +15,28 @@ class Game:
 		self.black_player = black_player # assign the black player
 
 	def play_game(self):
-		game_history = open('game_history.txt','w')
+		#game_history = open('game_history.txt','w')
 		stalemate = False
 		win = False
 		hold = False
 		jump_piece_number = None
 		no_jump_count = 0 # to track a simplified stalemate rule
-		player = self.red_player
+		if np.random.uniform(0, 1) >= .5:
+			player = self.red_player
+		else:
+			player = self.black_player
 		while not stalemate and not win:
-			move, piece_number  = player.make_move(self.board, jump_piece_number = jump_piece_number)
+			move, piece_number  = player.make_move(self.board, jump_piece_number = jump_piece_number) # get a move from the player
 			if np.max(move) != 0:
 				move_array = self.board.legal_piece_moves(color = player.color, piece_number = piece_number).flatten() * move
 				while np.count_nonzero(move_array) == 0:
+					print("Player proposed illegal move!!")
 					move, piece_number  = player.make_move(self.board, jump_piece_number = jump_piece_number)
 					move_array = self.board.legal_piece_moves(color = player.color, piece_number = piece_number).flatten() * move
 				self.board.move_piece(player.color, piece_number, np.argmax(move))
 				player.increment_move_count()
 				#game_history.write(self.board.visual_state())
 				if np.max(move_array) == 2:
-					#print('Jump: ',player.color)
 					if self.board.piece_count(color = player.other_color) == 0:
 						win = True
 						side = player.color
@@ -53,11 +56,10 @@ class Game:
 						player = self.black_player
 					else:
 						player = self.red_player
-				game_history.write(self.board.visual_state())
 			else:
 				win = True
 				side = player.other_color
-		return win, side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count
+		return win, side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
 				
 			
 

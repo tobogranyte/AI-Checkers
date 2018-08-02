@@ -28,11 +28,23 @@ else:
 	red_player = Player(model = red_model)
 	black_player = Player(model = black_model)
 
+red_wins = 1
+black_wins = 1
+games = 0
+highest_margin = 0
+
 while True:
 	game = Game(red_player = red_player, black_player = black_player)
-	#game.first_moves()
-	win, side, red_piece_count, black_piece_count, red_player_count, black_player_count = game.play_game()
-	print(win, side, red_piece_count, black_piece_count, red_player_count, black_player_count)
+	games += 1
+	win, side, red_piece_count, black_piece_count, red_player_count, black_player_count, red_player_illegal_count, black_player_illegal_count = game.play_game()
+	if side == "Red":
+		red_wins += 1
+	else:
+		black_wins += 1
+	margin = abs(red_piece_count - black_piece_count)
+	if margin > highest_margin:
+		highest_margin = margin
+	print(games, side, red_piece_count, black_piece_count, red_player_count, black_player_count, red_player_illegal_count, black_player_illegal_count, red_wins/black_wins, highest_margin)
 	red_player.reset()
 	black_player.reset()
 
