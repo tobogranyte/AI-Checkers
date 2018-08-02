@@ -41,7 +41,6 @@ class Piece:
 			m[0, :] = np.array([self.forward_left(board), self.forward_right(board)]) # update values for forward moves
 			if self.king:
 				m[1, :] = np.array([self.backward_left(board), self.backward_right(board)]) # update values for backward moves if piece is king
-
 		return m
 
 	def make_king(self):
@@ -110,15 +109,21 @@ class Piece:
 		else: #even row
 			c = board.color((self.yPosition + 1), (self.xPosition), self.color)
 			if self.xPosition != 3: # even and not rightmost position
-				c2 = board.color((self.yPosition + 2), (self.xPosition + 1), self.color)
-				if c  == self.color:
-					return 0
-				elif c == "O":
-					return 1
-				elif c2 == "O":
-					return 2
+				if self.yPosition != 6: # can move up to two positions forward
+					c2 = board.color((self.yPosition + 2), (self.xPosition + 1), self.color)
+					if c  == self.color:
+						return 0
+					elif c == "O":
+						return 1
+					elif c2 == "O":
+						return 2
+					else:
+						return 0
 				else:
-					return 0
+					if c != "O":
+						return 0
+					else:
+						return 1
 			else: # even and rightmost position
 				if c != "O":
 					return 0

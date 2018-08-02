@@ -12,7 +12,32 @@ from Board import Board
 
 class Player:
 	
-	def __init__(self, model='RandomMovesModel'):
-		import_string = 'from ' + model + ' import Model' # create import string
-		exec(import_string, globals())
-		self.model = Model()
+	def __init__(self, model, color):
+		self.model = model
+		self.color = color
+		self.move_count = 0
+		if self.color == "Red":
+			self.other_color = "Black"
+		else:
+			self.other_color = "Red"
+
+	def make_move(self, board, jump_piece_number = None):
+		model_move = np.zeros((48))
+		move = np.zeros((4))
+		piece_number = -1
+		if np.count_nonzero(board.legal_moves(color = self.color, jump_piece_number = jump_piece_number)) != 0:
+			while np.count_nonzero(model_move * board.legal_moves(color = self.color, jump_piece_number = jump_piece_number)) == 0: # check if the cuurent proposed move is legal
+				model_move = self.model.move(board, jump_piece_number = jump_piece_number) # retrieve one hot move
+				piece_number = int(np.argmax(model_move)/4)
+				move = model_move[(4 * piece_number):((4 * piece_number) + 4)]
+				#print(model_move)
+				#print(board.legal_moves(color = self.color))
+				#print(piece_number)
+				#print(move)
+		return move, piece_number
+
+	def increment_move_count(self):
+		self.move_count += 1
+
+	def reset(self):
+		self.move_count = 0
