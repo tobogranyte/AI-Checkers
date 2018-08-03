@@ -8,6 +8,7 @@ from Board import Board
 from Piece import Piece
 from Player import Player
 from Game import Game
+from shutil import copyfile
 
 if input("Symmetric Models [Y/n]?") == "Y":
 	s_model = input("Model name:")
@@ -28,13 +29,18 @@ else:
 	red_player = Player(model = red_model)
 	black_player = Player(model = black_model)
 
+if input("Mandatory jumps [Y/n]?") == "Y":
+	jump_rule = True
+else:
+	jump_rule = False
+
 red_wins = 1
 black_wins = 1
 games = 0
 highest_margin = 0
 
 while True:
-	game = Game(red_player = red_player, black_player = black_player)
+	game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule)
 	games += 1
 	win, side, red_piece_count, black_piece_count, red_player_count, black_player_count, red_player_illegal_count, black_player_illegal_count = game.play_game()
 	if side == "Red":
@@ -44,6 +50,7 @@ while True:
 	margin = abs(red_piece_count - black_piece_count)
 	if margin > highest_margin:
 		highest_margin = margin
+		copyfile('game_history.txt', 'best_game.txt')
 	print(games, side, red_piece_count, black_piece_count, red_player_count, black_player_count, red_player_illegal_count, black_player_illegal_count, red_wins/black_wins, highest_margin)
 	red_player.reset()
 	black_player.reset()

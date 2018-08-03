@@ -38,7 +38,7 @@ class Board:
 		state = self.black_state()
 		return np.append(state[2:,:,:], state[:2,:,:], axis = 0)
 
-	def legal_moves(self, color, jump_piece_number = None):
+	def legal_moves(self, color, jump_piece_number = None, jump_rule = True):
 		# return a 48 element array with all the legal moves for pieces 0-11 consecutively
 		# 0 = illegal, 1 = legal
 		if color == "Red":
@@ -47,13 +47,13 @@ class Board:
 			piece = self.black_piece
 		if jump_piece_number: # this is the second, mandatory jump move after a first jump
 			moves = np.zeros((48), dtype = 'int')
-			moves[(jump_piece_number * 4):((jump_piece_number * 4) + 4)] = (piece[jump_piece_number].legal_moves(self).flatten()/2).astype(int)
+			moves[(jump_piece_number * 4):((jump_piece_number * 4) + 4)] = (piece[jump_piece_number].legal_moves(self).flatten()/2).astype(int) * 2
 		else:
 			moves = np.array((), dtype = 'int')
 			for p in piece:
-				#print(p.color, p.number, p.xPosition, p.yPosition, end = ' | ')
 				moves = np.append(moves, p.legal_moves(self).flatten())
-			#print()
+			if np.max(moves) == 2 and jump_rule:
+				moves = (moves / 2).astype(int) * 2
 		return moves
 
 	def piece_count(self, color):
@@ -150,17 +150,10 @@ class Board:
 		yDest = piece.yPosition + (y1) * m # destination y position
 		x1 = move%2 + piece.yPosition % 2 - 1
 		xDest = piece.xPosition + (x1 + ((move % 2 + ((piece.yPosition + 1 ) % 2 - 1)) * (m - 1))) * (m == 1 or m == 2) # destination x position
-		#print("Shift: ", piece.yPosition % 2 - 1)
-		#print("x1: ", x1)
-		#print("y1: ", y1)
-		#print("Number: ", numbers[7 - (piece.yPosition + y1), piece.xPosition + x1])
-		#print("x: ", piece.xPosition + x1)
-		#print("y: ", 7 - piece.yPosition + y1)
 		if m == 2:
 			self.remove_piece(opposition_piece[numbers[7 - (piece.yPosition + y1), piece.xPosition + x1]])
 		state[:, 7 - piece.yPosition, piece.xPosition] = np.zeros(4, dtype=int)
 		numbers[7 - piece.yPosition, piece.xPosition] = -1
-		#print("Move", piece.color, "piece", piece.number, "from", piece.xPosition, piece.yPosition, "to", xDest, yDest)
 		piece.yPosition = yDest
 		piece.xPosition = xDest
 		state[:, 7 - piece.yPosition, piece.xPosition] = piece.position_array
@@ -184,7 +177,5 @@ class Board:
 			return "Black"
 		else:
 			return "O"
-
-	# def legal_moves(self, position):
 
 
