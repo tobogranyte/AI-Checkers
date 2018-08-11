@@ -26,8 +26,8 @@ else:
 	exec(black_import_string, globals())
 	red_model = rm()
 	black_model = bm()
-	red_player = Player(model = red_model)
-	black_player = Player(model = black_model)
+	red_player = Player(model = red_model, color = "Red")
+	black_player = Player(model = black_model, color = "Black")
 
 if input("Mandatory jumps [Y/n]?") == "Y":
 	jump_rule = True

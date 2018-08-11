@@ -31,12 +31,12 @@ class Player:
 		piece_number = -1
 		board_legal_moves = board.legal_moves(color = self.color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
 		if np.count_nonzero(board_legal_moves) != 0:
-			model_move = self.model.move(board, color = self.color, jump_piece_number = jump_piece_number, jump_rule = jump_rule, illegal = True) # retrieve one hot move
+			model_move = self.model.move(board, color = self.color, jump_piece_number = jump_piece_number, jump_rule = jump_rule) # retrieve one hot move
 			piece_number = int(np.argmax(model_move)/4)
 			move = model_move[(4 * piece_number):((4 * piece_number) + 4)]
 			while np.count_nonzero(model_move * board_legal_moves) == 0: # check if the cuurent proposed move is legal
 				self.illegal_move_count += 1
-				model_move = self.model.move(board, color = self.color, jump_piece_number = jump_piece_number, jump_rule = jump_rule) # retrieve one hot move
+				model_move = self.model.move(board, color = self.color, jump_piece_number = jump_piece_number, jump_rule = jump_rule, illegal = True) # retrieve one hot move
 				piece_number = int(np.argmax(model_move)/4)
 				move = model_move[(4 * piece_number):((4 * piece_number) + 4)]
 		return move, piece_number
