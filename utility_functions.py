@@ -116,8 +116,10 @@ def softmax_backward(dA, cache):
     
     Z = cache
     
-    s = 1/(1+np.exp(-Z))
-    dZ = dA * s * (1-s)
+    exps = np.exp(Z)
+    sm = exps / np.sum(exps, axis = 0)
+
+    dZ = dA * sm * (1-sm)
     
     assert (dZ.shape == Z.shape)
     
