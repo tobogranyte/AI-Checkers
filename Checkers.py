@@ -11,6 +11,22 @@ from Game import Game
 from shutil import copyfile
 import matplotlib.pyplot as plt
 
+train = ''
+train_red = ''
+train_black = ''
+red_wins = 0
+black_wins = 0
+games = 0
+red_illegal_total = 0
+red_move_total = 0
+black_illegal_total = 0
+black_move_total = 0
+red_win_pct_hist = np.array([])
+black_win_pct_hist = np.array([])
+red_illegal_pct_hist = np.array([])
+black_illegal_pct_hist = np.array([])
+games_hist = np.array([])
+
 if input("Symmetric Models [Y/n]?") == "Y":
 	symmetric = True
 	s_model = input("Model name:")
@@ -44,18 +60,6 @@ if input("Mandatory jumps [Y/n]?") == "Y":
 else:
 	jump_rule = False
 
-red_wins = 0
-black_wins = 0
-games = 0
-red_illegal_total = 0
-red_move_total = 0
-black_illegal_total = 0
-black_move_total = 0
-red_win_pct_hist = np.array([])
-black_win_pct_hist = np.array([])
-red_illegal_pct_hist = np.array([])
-black_illegal_pct_hist = np.array([])
-games_hist = np.array([])
 plt.figure(1)
 plt.ion()
 plt.show()
@@ -82,7 +86,7 @@ while True:
 	red_win_pct = (red_wins * 100)/(red_wins + black_wins)
 	black_win_pct = (black_wins * 100)/(red_wins + black_wins)
 	print(games, p_side, "%.2f" % red_illegal_pct, "%.2f" % black_illegal_pct, "%.2f" % red_win_pct, "%.2f" % black_win_pct)
-	if (train == "Y") and (games % train_games == 0):
+	if (train == "Y" or train_red == "Y" or train_black == "Y") and (games % train_games == 0):
 		if symmetric:
 			print("Training model...")
 		else:

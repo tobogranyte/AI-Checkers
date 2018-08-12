@@ -16,7 +16,7 @@ class Game:
 		self.jump_rule = jump_rule # are available jumps mandatory to make?
 
 	def play_game(self):
-		game_history = open('game_history.txt','w')
+		#game_history = open('game_history.txt','w')
 		stalemate = False
 		win = False
 		hold = False
@@ -41,7 +41,7 @@ class Game:
 					move_array = board_legal_moves * board_move
 				self.board.move_piece(player.color, piece_number, np.argmax(move))
 				player.increment_move_count()
-				game_history.write(self.board.visual_state())
+				#game_history.write(self.board.visual_state())
 				if np.max(move_array) == 2:
 					count = self.board.piece_count(color = player.other_color)
 					if count == 0:
@@ -65,6 +65,7 @@ class Game:
 			else:
 				win = True
 				side = player.other_color
+		#game_history.close()
 
 		return win, side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
 				
