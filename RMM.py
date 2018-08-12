@@ -1,6 +1,6 @@
 import numpy as np
 
-class RandomMovesModel:
+class RMM:
 	
 	def __init__(self):
 		print("New Random Moves Model")

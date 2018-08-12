@@ -65,6 +65,7 @@ class Game:
 			else:
 				win = True
 				side = player.other_color
+
 		return win, side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
 				
 					
