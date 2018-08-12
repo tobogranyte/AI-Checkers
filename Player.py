@@ -41,6 +41,9 @@ class Player:
 				move = model_move[(4 * piece_number):((4 * piece_number) + 4)]
 		return move, piece_number
 
+	def save_parameters(self):
+		self.model.save_parameters()
+
 	def increment_move_count(self):
 		self.move_count += 1
 

@@ -1,11 +1,74 @@
 import numpy as np
 from utility_functions import sigmoid, sigmoid_backward, relu, relu_backward, softmax, softmax_backward
+import pickle
 
 class FCN1:
 
 	def __init__(self):
 		self.layers_dims = [524, 1024, 524, 262, 131, 48] #  6-layer model
-		self.parameters = self.initialize_parameters_deep(self.layers_dims)
+		params, available = self.check_for_params()
+		checkpoint = False
+		name = ''
+		if available:
+			if input("Start from saved?") == "Y":
+				self.parameters = params
+				if input("Make checkpoint from saved?") == "Y":
+					name = input("Checkpoint name:")
+					self.save_obj(self.parameters, name)
+			else:
+				if input("Start from checkpoint?") == "Y":
+					while checkpoint == False and name != 's':
+						name = input("Checkpoint name [s = skip]:")
+						if name != "s":
+							checkpoint = self.load_checkpoint(name)
+							self.parameters = checkpoint
+						else:
+							print("Initializing parameters...")
+							self.parameters = self.initialize_parameters_deep(self.layers_dims)
+							print("Parameters initialized!")
+				else:
+					print("Initializing parameters...")
+					self.parameters = self.initialize_parameters_deep(self.layers_dims)
+					print("Parameters initialized!")
+		else:
+			print("Initializing parameters...")
+			self.parameters = self.initialize_parameters_deep(self.layers_dims)
+			print("Parameters initialized!")
+		self.moves_cache = np.array([])
+		self.illegal_moves_cache = np.array([])
+		self.probabilities_cache = np.array([])
+
+	def save_parameters(self):
+		self.save_obj(self.parameters, 'parameters_temp')
+
+	def save_obj(self, obj, name ):
+		with open('FCN1/'+ name + '.pkl', 'wb') as f:
+			pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+		print("File " + name + ".pkl saved!")
+
+	def load_obj(self, name):
+		with open('FCN1/' + name + '.pkl', 'rb') as f:
+			return pickle.load(f)
+
+	def load_checkpoint(self, name):
+		try:
+			checkpoint = pickle.load(open("FCN1/" + name + ".pkl", "rb"))
+		except (OSError, IOError) as e:
+			checkpoint = False
+			print("Can't find that checkpoint...")
+		if checkpoint != False:
+			print("Checkpoint " + name + ".pkl loaded!")
+		return checkpoint
+
+	def check_for_params(self):
+		try:
+			params = pickle.load(open("FCN1/parameters_temp.pkl", "rb"))
+			available = True
+		except (OSError, IOError) as e:
+			params = 0
+			available = False
+
+		return params, available
 
 	def initialize_parameters_deep(self, layer_dims):
 	    """
