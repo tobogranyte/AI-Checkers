@@ -35,7 +35,7 @@ class FCN1:
 			self.parameters = self.initialize_parameters_deep(self.layers_dims)
 			print("Parameters initialized!")
 		self.moves_cache = np.empty((48,0))
-		self.illegal_moves_cache = np.empty((48,0), int)
+		self.illegal_mask_cache = np.empty((48,0), int)
 		self.probabilities_cache = np.empty((48,0))
 
 	def save_parameters(self):
@@ -105,6 +105,10 @@ class FCN1:
 			self.moves_cache = np.append(self.moves_cache, new_move, axis = 1)
 			self.probabilities_cache = np.append(self.probabilities_cache, self.AL, axis = 1)
 			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
+			illegal_mask = np.zeros((48))
+			illegal_mask[self.board_legal_moves != 0] = 1
+			illegal_mask = illegal_mask.reshape(illegal_mask.size, -1)
+			self.illegal_mask_cache = np.append(self.illegal_mask_cache, illegal_mask, axis = 1)
 		else:
 			self.moves_cache[:,-1] = new_move.flatten()
 
