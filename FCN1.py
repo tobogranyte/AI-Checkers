@@ -34,9 +34,13 @@ class FCN1:
 			print("Initializing parameters...")
 			self.parameters = self.initialize_parameters_deep(self.layers_dims)
 			print("Parameters initialized!")
-		self.moves_cache = np.empty((48,0))
-		self.illegal_mask_cache = np.empty((48,0), int)
-		self.probabilities_cache = np.empty((48,0))
+		self.initialize_training_batch()
+
+	def initialize_training_batch(self):
+		self.moves = np.empty((48,0))
+		self.illegal_masks = np.empty((48,0), int)
+		self.probabilities = np.empty((48,0))
+		self.X_batch = np.empty((self.layers_dims[0],0))
 
 	def save_parameters(self):
 		self.save_obj(self.parameters, 'parameters_temp')
@@ -97,22 +101,45 @@ class FCN1:
 	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
 		X = self.get_input_vector(board, color, jump_piece_number = None)
 		if illegal == False: # only run forward prop again if it's a brand new move. If the model is just trying again, just get another random choice from the same probs
-			self.AL, self.caches = self.L_model_forward(X, self.parameters)
+			self.AL, caches = self.L_model_forward(X, self.parameters)
 		move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()))
 		one_hot_move = np.eye(48, dtype = 'int')[move]
 		new_move = one_hot_move.reshape(one_hot_move.size, -1)
 		if illegal == False:
-			self.moves_cache = np.append(self.moves_cache, new_move, axis = 1)
-			self.probabilities_cache = np.append(self.probabilities_cache, self.AL, axis = 1)
+			self.moves = np.append(self.moves, new_move, axis = 1)
+			self.probabilities = np.append(self.probabilities, self.AL, axis = 1)
+			self.X_batch = np.append(self.X_batch, X, axis = 1)
 			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
 			illegal_mask = np.zeros((48))
 			illegal_mask[self.board_legal_moves != 0] = 1
 			illegal_mask = illegal_mask.reshape(illegal_mask.size, -1)
-			self.illegal_mask_cache = np.append(self.illegal_mask_cache, illegal_mask, axis = 1)
+			self.illegal_masks = np.append(self.illegal_masks, illegal_mask, axis = 1)
 		else:
-			self.moves_cache[:,-1] = new_move.flatten()
+			self.moves[:,-1] = new_move.flatten()
 
 		return one_hot_move, self.board_legal_moves
+
+	def train(self):
+		learning_rate = 0.0075
+
+		Y = self.make_Y(self.probabilities, self.illegal_masks)
+
+		AL, caches = self.L_model_forward(self.X_batch, self.parameters)
+
+		cost = self.compute_cost_mean_square_error(AL, Y)
+
+		grads = self.L_model_backward(AL, Y, caches)
+
+		self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
+
+		self.initialize_training_batch()
+
+		return cost
+
+	def make_Y(self, probs, masks):
+#		Y = np.minimum(probs, masks)
+		Y = masks
+		return Y
 
 	def get_input_vector(self, board, color, jump_piece_number):
 		if color == 'Red':
@@ -248,26 +275,54 @@ class FCN1:
 	    return cost
 
 	def compute_cost_mean_square_error(self, AL, Y):
-	    """
-	    Implement the mean square error cost function.
+		"""
+		Implement the mean square error cost function.
 
-	    Arguments:
-	    AL -- probability vector corresponding to your label predictions, shape (1, number of examples)
-	    Y -- true "label" vector (for example: containing 0 if non-cat, 1 if cat), shape (1, number of examples)
+		Arguments:
+		AL -- probability vector corresponding to your label predictions, shape (1, number of examples)
+		Y -- true "label" vector (for example: containing 0 if non-cat, 1 if cat), shape (1, number of examples)
 
-	    Returns:
-	    cost -- cross-entropy cost
-	    """
-	    
-	    m = Y.shape[1]
+		Returns:
+		cost -- cross-entropy cost
+		"""
+		print(Y.shape)
+		print(AL.shape)
 
-	    # Compute loss from aL and y.
-	    cost = (1./ m) * np.sum(np.square(Y - AL))
-	    
-	    cost = np.squeeze(cost)      # To make sure your cost's shape is what we expect (e.g. this turns [[17]] into 17).
-	    assert(cost.shape == ())
-	    
-	    return cost
+		m = Y.shape[1]
+
+		# Compute loss from aL and y.
+		cost = (1./ m) * np.sum(np.square(Y - AL))
+
+		cost = np.squeeze(cost)      # To make sure your cost's shape is what we expect (e.g. this turns [[17]] into 17).
+		assert(cost.shape == ())
+
+		return cost
+
+	def linear_backward(self, dZ, cache):
+		"""
+		Implement the linear portion of backward propagation for a single layer (layer l)
+
+		Arguments:
+		dZ -- Gradient of the cost with respect to the linear output (of current layer l)
+		cache -- tuple of values (A_prev, W, b) coming from the forward propagation in the current layer
+
+		Returns:
+		dA_prev -- Gradient of the cost with respect to the activation (of the previous layer l-1), same shape as A_prev
+		dW -- Gradient of the cost with respect to W (current layer l), same shape as W
+		db -- Gradient of the cost with respect to b (current layer l), same shape as b
+		"""
+		A_prev, W, b = cache
+		m = A_prev.shape[1]
+
+		dW = (1. / m) * np.dot(dZ, cache[0].T) 
+		db = (1. / m) * np.sum(dZ, axis=1, keepdims=True)
+		dA_prev = np.dot(cache[1].T, dZ)
+
+		assert (dA_prev.shape == A_prev.shape)
+		assert (dW.shape == W.shape)
+		assert (db.shape == b.shape)
+
+		return dA_prev, dW, db
 
 	def linear_activation_backward(self, dA, cache, activation):
 	    """
@@ -287,15 +342,15 @@ class FCN1:
 	    
 	    if activation == "relu":
 	        dZ = relu_backward(dA, activation_cache)
-	        dA_prev, dW, db = linear_backward(dZ, linear_cache)
+	        dA_prev, dW, db = self.linear_backward(dZ, linear_cache)
 	        
 	    elif activation == "sigmoid":
 	        dZ = sigmoid_backward(dA, activation_cache)
-	        dA_prev, dW, db = linear_backward(dZ, linear_cache)
+	        dA_prev, dW, db = self.linear_backward(dZ, linear_cache)
 	    
 	    elif activation == "softmax":
 	        dZ = softmax_backward(dA, activation_cache)
-	        dA_prev, dW, db = linear_backward(dZ, linear_cache)
+	        dA_prev, dW, db = self.linear_backward(dZ, linear_cache)
 	    
 	    return dA_prev, dW, db
 
@@ -323,17 +378,18 @@ class FCN1:
 	    
 	    # Initializing the backpropagation (derivative of )
 	    dAL = 2 * (AL - Y)
+
 	    
 	    # Lth layer (SIGMOID -> LINEAR) gradients. Inputs: "AL, Y, caches". Outputs: "grads["dAL"], grads["dWL"], grads["dbL"]
 	    current_cache = caches[-1]
-	    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = linear_activation_backward(dAL, current_cache, activation="sigmoid")
+	    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = self.linear_activation_backward(dAL, current_cache, activation="sigmoid")
 	    
 	    for l in reversed(range(L-1)):
 	        # lth layer: (RELU -> LINEAR) gradients.
 	        # Inputs: "grads["dA" + str(l + 2)], caches". Outputs: "grads["dA" + str(l + 1)] , grads["dW" + str(l + 1)] , grads["db" + str(l + 1)] 
 	        current_cache = caches[l]
 	        
-	        dA_prev_temp, dW_temp, db_temp = linear_activation_backward(grads["dA" + str(l + 2)], current_cache, activation="relu")
+	        dA_prev_temp, dW_temp, db_temp = self.linear_activation_backward(grads["dA" + str(l + 2)], current_cache, activation="relu")
 	        grads["dA" + str(l + 1)] = dA_prev_temp
 	        grads["dW" + str(l + 1)] = dW_temp
 	        grads["db" + str(l + 1)] = db_temp
