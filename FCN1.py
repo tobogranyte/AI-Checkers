@@ -34,9 +34,9 @@ class FCN1:
 			print("Initializing parameters...")
 			self.parameters = self.initialize_parameters_deep(self.layers_dims)
 			print("Parameters initialized!")
-		self.moves_cache = np.array([])
-		self.illegal_moves_cache = np.array([])
-		self.probabilities_cache = np.array([])
+		self.moves_cache = np.empty((48,0))
+		self.illegal_moves_cache = np.empty((48,0), int)
+		self.probabilities_cache = np.empty((48,0))
 
 	def save_parameters(self):
 		self.save_obj(self.parameters, 'parameters_temp')
@@ -100,8 +100,15 @@ class FCN1:
 			self.AL, self.caches = self.L_model_forward(X, self.parameters)
 		move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()))
 		one_hot_move = np.eye(48, dtype = 'int')[move]
+		new_move = one_hot_move.reshape(one_hot_move.size, -1)
+		if illegal == False:
+			self.moves_cache = np.append(self.moves_cache, new_move, axis = 1)
+			self.probabilities_cache = np.append(self.probabilities_cache, self.AL, axis = 1)
+			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
+		else:
+			self.moves_cache[:,-1] = new_move.flatten()
 
-		return one_hot_move	
+		return one_hot_move, self.board_legal_moves
 
 	def get_input_vector(self, board, color, jump_piece_number):
 		if color == 'Red':

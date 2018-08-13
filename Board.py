@@ -51,7 +51,7 @@ class Board:
 
 	def legal_moves(self, color, jump_piece_number = None, jump_rule = True):
 		# return a 48 element array with all the legal moves for pieces 0-11 consecutively
-		# 0 = illegal, 1 = legal
+		# 0 = illegal, 1 = legal, 2 = legal jump
 		if color == "Red":
 			piece = self.red_piece
 		else:
