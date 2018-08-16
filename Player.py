@@ -41,8 +41,8 @@ class Player:
 		return move, piece_number
 
 	def train_model(self):
-		cost = self.model.train()
-		return cost
+		cost, params = self.model.train()
+		return cost, params
 
 	def save_parameters(self):
 		self.model.save_parameters()

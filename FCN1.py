@@ -1,6 +1,7 @@
 import numpy as np
-from utility_functions import sigmoid, sigmoid_backward, relu, relu_backward, softmax, softmax_backward
+from utility_functions import sigmoid, sigmoid_backward, relu, relu_backward, softmax, softmax_backward, dictionary_to_vector, vector_to_dictionary, gradients_to_vector
 import pickle
+import matplotlib.pyplot as plt
 
 class FCN1:
 
@@ -34,13 +35,43 @@ class FCN1:
 			print("Initializing parameters...")
 			self.parameters = self.initialize_parameters_deep(self.layers_dims)
 			print("Parameters initialized!")
+		if input("Gradient check?") == "Y":
+			self.plot_activations()
+			input("Paused.")
 		self.initialize_training_batch()
+		self.legal_means = []
+		self.illegal_means = []
+		self.trainings = 0
+
+	def plot_activations(self):
+		plt.figure(2)
+		plt.ion()
+		plt.show()
+		g_norm = np.random.normal(scale = 1, size = self.layers_dims[0]).reshape(self.layers_dims[0],1)
+		self.AL, caches = self.L_model_forward(g_norm, self.parameters)
+		Y = np.zeros((48,1))
+		L = len(caches)
+		for l in reversed(range(L-1)):
+			sp = 100 + (10 * (L - 1)) + (l + 1)
+			plt.subplot(sp)
+			linear_cache, activation_cache = caches[l]
+			plt.hist(activation_cache)
+		plt.draw()
+		plt.pause(0.001)
+		plt.figure(3)
+		plt.ion()
+		plt.show()
+		plt.hist(self.AL)
+
+		grads = self.L_model_backward(self.AL, Y, caches)
+		difference = self.gradient_check_n(self.parameters, grads, g_norm, Y)
+		input("Paused...")
 
 	def initialize_training_batch(self):
-		self.moves = np.empty((48,0))
-		self.illegal_masks = np.empty((48,0), int)
-		self.probabilities = np.empty((48,0))
-		self.X_batch = np.empty((self.layers_dims[0],0))
+		self.moves = []
+		self.illegal_masks = []
+		self.probabilities = []
+		self.X_batch = []
 
 	def save_parameters(self):
 		self.save_obj(self.parameters, 'parameters_temp')
@@ -99,49 +130,73 @@ class FCN1:
 	    return parameters
 
 	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
-		X = self.get_input_vector(board, color, jump_piece_number = None)
 		if illegal == False: # only run forward prop again if it's a brand new move. If the model is just trying again, just get another random choice from the same probs
-			self.AL, caches = self.L_model_forward(X, self.parameters)
-		move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()))
+			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
+			self.X = self.get_input_vector(board, self.board_legal_moves, color, jump_piece_number = None)
+			self.AL, caches = self.L_model_forward(self.X, self.parameters)
+		move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()/np.sum(self.AL.flatten())))
 		one_hot_move = np.eye(48, dtype = 'int')[move]
 		new_move = one_hot_move.reshape(one_hot_move.size, -1)
 		if illegal == False:
-			self.moves = np.append(self.moves, new_move, axis = 1)
-			self.probabilities = np.append(self.probabilities, self.AL, axis = 1)
-			self.X_batch = np.append(self.X_batch, X, axis = 1)
-			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
-			illegal_mask = np.zeros((48))
-			illegal_mask[self.board_legal_moves != 0] = 1
-			illegal_mask = illegal_mask.reshape(illegal_mask.size, -1)
-			self.illegal_masks = np.append(self.illegal_masks, illegal_mask, axis = 1)
+			self.moves.append(new_move)
+			self.probabilities.append(self.AL)
+			self.X_batch.append(self.X)
+			self.illegal_mask = self.illegal_mask.reshape(self.illegal_mask.size, -1)
+			self.illegal_masks.append(self.illegal_mask)
 		else:
-			self.moves[:,-1] = new_move.flatten()
+			self.moves[-1] = new_move
 
 		return one_hot_move, self.board_legal_moves
 
 	def train(self):
+		params = {}
 		learning_rate = 0.0075
 
-		Y = self.make_Y(self.probabilities, self.illegal_masks)
+		Y = self.make_Y(np.hstack(self.probabilities), np.hstack(self.illegal_masks))
 
-		AL, caches = self.L_model_forward(self.X_batch, self.parameters)
+		for i in range(0, 1):
+
+			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters)
+
+			if i == 0:
+				pre_cost = self.compute_cost_mean_square_error(AL, Y)
+
+			grads = self.L_model_backward(AL, Y, caches)
+
+			self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
 
 		cost = self.compute_cost_mean_square_error(AL, Y)
+		self.trainings += 1
+		self.plot_activations()
+		legal_mean, illegal_mean = self.get_means(AL, np.hstack(self.illegal_masks))
 
-		grads = self.L_model_backward(AL, Y, caches)
+		self.legal_means.append(legal_mean)
+		self.illegal_means.append(illegal_mean)
 
-		self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
+		params["illegal_means"] = self.illegal_means
+		params["legal_means"] = self.legal_means
+		params["trainings"] = self.trainings
 
 		self.initialize_training_batch()
 
-		return cost
+		return cost, pre_cost, params
+
+	def get_means(self, AL, illegal_masks):
+		legal_mean = np.sum(AL * illegal_masks)/np.count_nonzero(illegal_masks)
+		illegal_mean = np.sum(AL * (1 - illegal_masks))/np.count_nonzero(1 - illegal_masks)
+
+		return legal_mean, illegal_mean 
+
 
 	def make_Y(self, probs, masks):
-#		Y = np.minimum(probs, masks)
-		Y = masks
+		Y = np.minimum(probs, masks)
+		Y[Y > 0] = 1
+
 		return Y
 
-	def get_input_vector(self, board, color, jump_piece_number):
+	def get_input_vector(self, board, board_legal_moves, color, jump_piece_number):
+		self.illegal_mask = np.zeros((48))
+		self.illegal_mask[board_legal_moves != 0] = 1
 		if color == 'Red':
 			v = board.red_home_view().flatten()
 		else:
@@ -152,6 +207,7 @@ class FCN1:
 		else:
 			j_vector = np.zeros((12))
 		v = np.append(v, j_vector)
+		# v = np.append(v, self.illegal_mask)
 
 		return v.reshape(v.size, -1)
 
@@ -188,7 +244,7 @@ class FCN1:
 	    AL, cache = self.linear_activation_forward(A, 
 	                                             parameters["W" + str(L)], 
 	                                             parameters["b" + str(L)], 
-	                                             activation='softmax')
+	                                             activation='sigmoid')
 	    caches.append(cache)
 	    
 	    assert(AL.shape == (self.layers_dims[L],X.shape[1]))
@@ -418,3 +474,66 @@ class FCN1:
 	        parameters["b" + str(l+1)] = parameters["b" + str(l+1)] - learning_rate * grads["db" + str(l+1)]
 	        
 	    return parameters
+
+	def gradient_check_n(self, parameters, gradients, X, Y, epsilon = 1e-7):
+		"""
+		Checks if backward_propagation_n computes correctly the gradient of the cost output by forward_propagation_n
+
+		Arguments:
+		parameters -- python dictionary containing your parameters "W1", "b1", "W2", "b2", "W3", "b3":
+		grad -- output of backward_propagation_n, contains gradients of the cost with respect to the parameters. 
+		x -- input datapoint, of shape (input size, 1)
+		y -- true "label"
+		epsilon -- tiny shift to the input to compute approximated gradient with formula(1)
+
+		Returns:
+		difference -- difference (2) between the approximated gradient and the backward propagation gradient
+		"""
+
+		# Set-up variables
+		parameters_values, _ = dictionary_to_vector(parameters)
+		grad = gradients_to_vector(gradients)
+		num_parameters = parameters_values.shape[0]
+		J_plus = np.zeros((num_parameters, 1))
+		J_minus = np.zeros((num_parameters, 1))
+		gradapprox = np.zeros((num_parameters, 1))
+
+		# Compute gradapprox
+		for i in range(num_parameters):
+		    
+		    # Compute J_plus[i]. Inputs: "parameters_values, epsilon". Output = "J_plus[i]".
+		    # "_" is used because the function you have to outputs two parameters but we only care about the first one
+		    ### START CODE HERE ### (approx. 3 lines)
+		    thetaplus = np.copy(parameters_values)                                      # Step 1
+		    thetaplus[i][0] += epsilon
+		    # Step 2
+		    print(thetaplus.shape)
+		    AL = self.L_model_forward(X, vector_to_dictionary(thetaplus))
+		    J_plus[i] = self.compute_cost_mean_square_error(AL, Y)
+		    ### END CODE HERE ###
+		    
+		    # Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
+		    ### START CODE HERE ### (approx. 3 lines)
+		    thetaminus = np.copy(parameters_values)                                     # Step 1
+		    thetaminus[i][0] -= epsilon                               # Step 2    
+		    AL = self.L_model_forward(X, vector_to_dictionary(thetaminus))    
+		    J_minus[i] = self.compute_cost_mean_square_error(AL, Y)                               # Step 3
+		    ### END CODE HERE ###
+		    
+		    # Compute gradapprox[i]
+		    ### START CODE HERE ### (approx. 1 line)
+		    gradapprox[i] = (J_plus[i] - J_minus[i]) / (2. * epsilon)
+		    ### END CODE HERE ###
+
+		# Compare gradapprox to backward propagation gradients by computing difference.
+		### START CODE HERE ### (approx. 1 line)
+		numerator = np.linalg.norm(grad - gradapprox)                               # Step 1'
+		denominator = np.linalg.norm(grad) + np.linalg.norm(gradapprox)             # Step 2'
+		difference = numerator / denominator  
+
+		if difference > 1e-7:
+		    print ("\033[93m" + "There is a mistake in the backward propagation! difference = " + str(difference) + "\033[0m")
+		else:
+		    print ("\033[92m" + "Your backward propagation works perfectly fine! difference = " + str(difference) + "\033[0m")
+
+		return difference

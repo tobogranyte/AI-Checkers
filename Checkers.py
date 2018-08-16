@@ -21,12 +21,13 @@ red_illegal_total = 0
 red_move_total = 0
 black_illegal_total = 0
 black_move_total = 0
-red_win_pct_hist = np.array([])
-black_win_pct_hist = np.array([])
-red_illegal_pct_hist = np.array([])
-black_illegal_pct_hist = np.array([])
-games_hist = np.array([])
-cost_hist = np.array([])
+red_win_pct_hist = []
+black_win_pct_hist = []
+red_illegal_pct_hist = []
+black_illegal_pct_hist = []
+games_hist = []
+cost_hist = []
+params = {}
 
 if input("Symmetric Models [Y/n]?") == "Y":
 	symmetric = True
@@ -49,6 +50,7 @@ else:
 		train_black = input("Train Black?")
 	if train_red == "Y" or train_black == "Y":
 		train_games = int(input("Number of games before training:"))
+	plot_interval = int(input("Plot interval:"))
 	red_import_string = 'from ' + r_model + ' import ' + r_model + ' as rm' # create red model import string
 	black_import_string = 'from ' + b_model + ' import ' + b_model + ' as bm' # create black model import string
 	exec(red_import_string, globals())
@@ -70,7 +72,10 @@ if input("Play game [Y/n]:") == "Y":
 	ax1 = plt.subplot2grid((30, 1), (0, 0), colspan=2, rowspan=8)
 	ax2 = plt.subplot2grid((30, 1), (12, 0), colspan=2, rowspan=8)
 	ax3 = plt.subplot2grid((30, 1), (22, 0), colspan=2, rowspan=8)
-	ax1.set_title('Win Percentage')
+	#ax1.set_title('Win Percentage')
+	#ax1.set_xlabel('Games')
+	#ax1.set_ylabel('Percentage')
+	ax1.set_title('Illegal/Legal Means')
 	ax1.set_xlabel('Games')
 	ax1.set_ylabel('Percentage')
 	ax2.set_title('Illegal Move Percentage')
@@ -109,23 +114,27 @@ if input("Play game [Y/n]:") == "Y":
 			else:
 				if train_red == "Y":
 					print("Training Red...")
-					cost = red_player.train_model()
-					red_player.save_parameters()
+					cost, params = red_player.train_model()
+					illegal_means = params["illegal_means"]
+					legal_means = params["legal_means"]
 				if train_black == "Y":
 					print("Training Black...")
 					black_player.train_model()
 					black_player.save_parameters()
-			red_win_pct_hist = np.append(red_win_pct_hist, red_win_pct)
-			black_win_pct_hist = np.append(black_win_pct_hist, black_win_pct)
-			red_illegal_pct_hist = np.append(red_illegal_pct_hist, red_illegal_pct)
-			black_illegal_pct_hist = np.append(black_illegal_pct_hist, black_illegal_pct)
-			cost_hist = np.append(cost_hist, cost)
-			games_hist = np.append(games_hist, games)
-			ax1.plot(games_hist, red_win_pct_hist, 'r-', games_hist, black_win_pct_hist, 'k-')
-			ax2.plot(games_hist, red_illegal_pct_hist, 'r-', games_hist, black_illegal_pct_hist, 'k-')
-			ax3.plot(games_hist, cost_hist, 'k-')
-			plt.draw()
-			plt.pause(0.001)
+			red_win_pct_hist.append(red_win_pct)
+			black_win_pct_hist.append(black_win_pct)
+			red_illegal_pct_hist.append(red_illegal_pct)
+			black_illegal_pct_hist.append(black_illegal_pct)
+			cost_hist.append(cost)
+			games_hist.append(games)
+			if (params["trainings"] % plot_interval == 0) or params["trainings"] < 100:
+				red_player.save_parameters()
+				#ax1.plot(games_hist, red_win_pct_hist, 'r-', games_hist, black_win_pct_hist, 'k-')
+				ax1.plot(games_hist, illegal_means, 'r-', games_hist, legal_means, 'k-')
+				ax2.plot(games_hist, red_illegal_pct_hist, 'r-', games_hist, black_illegal_pct_hist, 'k-')
+				ax3.semilogy(games_hist, cost_hist, 'k-')
+				plt.draw()
+				plt.pause(0.001)
 			red_wins = 0
 			black_wins = 0
 			red_illegal_total = 0
