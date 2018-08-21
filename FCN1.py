@@ -2,6 +2,7 @@ import numpy as np
 from utility_functions import sigmoid, sigmoid_backward, relu, relu_backward, softmax, softmax_backward, dictionary_to_vector, vector_to_dictionary, gradients_to_vector
 import pickle
 import matplotlib.pyplot as plt
+import os
 
 class FCN1:
 
@@ -10,6 +11,23 @@ class FCN1:
 		params, available = self.check_for_params()
 		checkpoint = False
 		name = ''
+		self.cuda = ''
+
+		try:
+			cuda = os.environ['CUDA_PRESENT']
+		except:
+			cuda = ''
+
+		if cuda == 'Yes':
+			self.cuda = True
+		else:
+			self.cuda = False
+
+		if self.cuda:
+			print("Got CUDA!")
+		else:
+			print("No CUDA... *sniff*")
+
 		if available:
 			if input("Start from saved?") == "Y":
 				self.parameters = params
@@ -37,6 +55,7 @@ class FCN1:
 			print("Parameters initialized!")
 		if input("Gradient check?") == "Y":
 			self.plot_activations()
+			self.check_gradients()
 			input("Paused.")
 		self.initialize_training_batch()
 		self.legal_means = []
@@ -63,6 +82,10 @@ class FCN1:
 		plt.show()
 		plt.hist(self.AL)
 
+	def check_gradients(self):
+		g_norm = np.random.normal(scale = 1, size = self.layers_dims[0]).reshape(self.layers_dims[0],1)
+		self.AL, caches = self.L_model_forward(g_norm, self.parameters)
+		Y = np.zeros((48,1))
 		grads = self.L_model_backward(self.AL, Y, caches)
 		difference = self.gradient_check_n(self.parameters, grads, g_norm, Y)
 		input("Paused...")
@@ -159,13 +182,15 @@ class FCN1:
 			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters)
 
 			if i == 0:
-				pre_cost = self.compute_cost_mean_square_error(AL, Y)
+				#pre_cost = self.compute_cost_mean_square_error(AL, Y)
+				pre_cost = self.compute_cost_cross_entropy(AL, Y)
 
 			grads = self.L_model_backward(AL, Y, caches)
 
 			self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
 
-		cost = self.compute_cost_mean_square_error(AL, Y)
+		#cost = self.compute_cost_mean_square_error(AL, Y)
+		cost = self.compute_cost_cross_entropy(AL, Y)
 		self.trainings += 1
 		self.plot_activations()
 		legal_mean, illegal_mean = self.get_means(AL, np.hstack(self.illegal_masks))
@@ -179,7 +204,7 @@ class FCN1:
 
 		self.initialize_training_batch()
 
-		return cost, pre_cost, params
+		return cost, params
 
 	def get_means(self, AL, illegal_masks):
 		legal_mean = np.sum(AL * illegal_masks)/np.count_nonzero(illegal_masks)
@@ -242,9 +267,9 @@ class FCN1:
 	    
 	    # Implement LINEAR -> SIGMOID. Add "cache" to the "caches" list.
 	    AL, cache = self.linear_activation_forward(A, 
-	                                             parameters["W" + str(L)], 
+                                            	 parameters["W" + str(L)], 
 	                                             parameters["b" + str(L)], 
-	                                             activation='sigmoid')
+	                                             activation='softmax')
 	    caches.append(cache)
 	    
 	    assert(AL.shape == (self.layers_dims[L],X.shape[1]))
@@ -266,6 +291,7 @@ class FCN1:
 		"""
 
 		Z = np.dot(W, A) + b
+		
 
 		assert(Z.shape == (W.shape[0], A.shape[1]))
 		cache = (A, W, b)
@@ -341,9 +367,6 @@ class FCN1:
 		Returns:
 		cost -- cross-entropy cost
 		"""
-		print(Y.shape)
-		print(AL.shape)
-
 		m = Y.shape[1]
 
 		# Compute loss from aL and y.
@@ -373,10 +396,6 @@ class FCN1:
 		dW = (1. / m) * np.dot(dZ, cache[0].T) 
 		db = (1. / m) * np.sum(dZ, axis=1, keepdims=True)
 		dA_prev = np.dot(cache[1].T, dZ)
-
-		assert (dA_prev.shape == A_prev.shape)
-		assert (dW.shape == W.shape)
-		assert (db.shape == b.shape)
 
 		return dA_prev, dW, db
 
@@ -433,12 +452,13 @@ class FCN1:
 	    Y = Y.reshape(AL.shape) # after this line, Y is the same shape as AL
 	    
 	    # Initializing the backpropagation (derivative of )
+	    #dAL = 2 * (AL - Y)
 	    dAL = 2 * (AL - Y)
 
 	    
 	    # Lth layer (SIGMOID -> LINEAR) gradients. Inputs: "AL, Y, caches". Outputs: "grads["dAL"], grads["dWL"], grads["dbL"]
 	    current_cache = caches[-1]
-	    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = self.linear_activation_backward(dAL, current_cache, activation="sigmoid")
+	    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = self.linear_activation_backward(dAL, current_cache, activation="softmax")
 	    
 	    for l in reversed(range(L-1)):
 	        # lth layer: (RELU -> LINEAR) gradients.
@@ -453,27 +473,27 @@ class FCN1:
 	    return grads
 
 	def update_parameters(self, parameters, grads, learning_rate):
-	    """
-	    Update parameters using gradient descent
-	    
-	    Arguments:
-	    parameters -- python dictionary containing your parameters 
-	    grads -- python dictionary containing your gradients, output of L_model_backward
-	    
-	    Returns:
-	    parameters -- python dictionary containing your updated parameters 
-	                  parameters["W" + str(l)] = ... 
-	                  parameters["b" + str(l)] = ...
-	    """
-	    
-	    L = len(parameters) // 2 # number of layers in the neural network
+		"""
+		Update parameters using gradient descent
 
-	    # Update rule for each parameter. Use a for loop.
-	    for l in range(L):
-	        parameters["W" + str(l+1)] = parameters["W" + str(l+1)] - learning_rate * grads["dW" + str(l+1)]
-	        parameters["b" + str(l+1)] = parameters["b" + str(l+1)] - learning_rate * grads["db" + str(l+1)]
-	        
-	    return parameters
+		Arguments:
+		parameters -- python dictionary containing your parameters 
+		grads -- python dictionary containing your gradients, output of L_model_backward
+
+		Returns:
+		parameters -- python dictionary containing your updated parameters 
+		              parameters["W" + str(l)] = ... 
+		              parameters["b" + str(l)] = ...
+		"""
+
+		L = len(parameters) // 2 # number of layers in the neural network
+
+		# Update rule for each parameter. Use a for loop.
+		for l in range(L):
+			parameters["W" + str(l+1)] = parameters["W" + str(l+1)] - learning_rate * grads["dW" + str(l+1)]
+			parameters["b" + str(l+1)] = parameters["b" + str(l+1)] - learning_rate * grads["db" + str(l+1)]
+		    
+		return parameters
 
 	def gradient_check_n(self, parameters, gradients, X, Y, epsilon = 1e-7):
 		"""
@@ -493,37 +513,36 @@ class FCN1:
 		# Set-up variables
 		parameters_values, _ = dictionary_to_vector(parameters)
 		grad = gradients_to_vector(gradients)
+		print(grad.shape)
 		num_parameters = parameters_values.shape[0]
+		print(parameters_values.shape)
 		J_plus = np.zeros((num_parameters, 1))
 		J_minus = np.zeros((num_parameters, 1))
 		gradapprox = np.zeros((num_parameters, 1))
 
 		# Compute gradapprox
 		for i in range(num_parameters):
+			if i % 1000 == 0:
+				print(i)
 		    
-		    # Compute J_plus[i]. Inputs: "parameters_values, epsilon". Output = "J_plus[i]".
-		    # "_" is used because the function you have to outputs two parameters but we only care about the first one
-		    ### START CODE HERE ### (approx. 3 lines)
-		    thetaplus = np.copy(parameters_values)                                      # Step 1
-		    thetaplus[i][0] += epsilon
-		    # Step 2
-		    print(thetaplus.shape)
-		    AL = self.L_model_forward(X, vector_to_dictionary(thetaplus))
-		    J_plus[i] = self.compute_cost_mean_square_error(AL, Y)
-		    ### END CODE HERE ###
-		    
-		    # Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
-		    ### START CODE HERE ### (approx. 3 lines)
-		    thetaminus = np.copy(parameters_values)                                     # Step 1
-		    thetaminus[i][0] -= epsilon                               # Step 2    
-		    AL = self.L_model_forward(X, vector_to_dictionary(thetaminus))    
-		    J_minus[i] = self.compute_cost_mean_square_error(AL, Y)                               # Step 3
-		    ### END CODE HERE ###
-		    
-		    # Compute gradapprox[i]
-		    ### START CODE HERE ### (approx. 1 line)
-		    gradapprox[i] = (J_plus[i] - J_minus[i]) / (2. * epsilon)
-		    ### END CODE HERE ###
+			# Compute J_plus[i]. Inputs: "parameters_values, epsilon". Output = "J_plus[i]".
+			# "_" is used because the function you have to outputs two parameters but we only care about the first one
+			### START CODE HERE ### (approx. 3 lines)
+			thetaplus = np.copy(parameters_values)                                      # Step 1
+			thetaplus[i][0] += epsilon
+			# Step 2
+			AL, _ = self.L_model_forward(X, vector_to_dictionary(thetaplus, self.parameters))
+			J_plus[i] = self.compute_cost_mean_square_error(AL, Y)
+			### END CODE HERE ###
+
+			# Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
+			thetaminus = np.copy(parameters_values)                                     # Step 1
+			thetaminus[i][0] -= epsilon                               # Step 2    
+			AL, _ = self.L_model_forward(X, vector_to_dictionary(thetaminus, self.parameters))    
+			J_minus[i] = self.compute_cost_mean_square_error(AL, Y)                               # Step 3
+
+			# Compute gradapprox[i]
+			gradapprox[i] = (J_plus[i] - J_minus[i]) / (2. * epsilon)
 
 		# Compare gradapprox to backward propagation gradients by computing difference.
 		### START CODE HERE ### (approx. 1 line)

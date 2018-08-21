@@ -33,7 +33,6 @@ def softmax(Z):
     A = exps / np.sum(exps, axis = 0)
     #print("Z, exps")
     #print(np.append(np.append(Z, exps, axis = 1), A, axis = 1))
-    assert(A.shape == Z.shape)
 
     cache = Z
 
@@ -52,9 +51,7 @@ def relu(Z):
     """
     
     A = np.maximum(0,Z)
-    
-    assert(A.shape == Z.shape)
-    
+        
     cache = Z 
     return A, cache
 
@@ -76,9 +73,7 @@ def relu_backward(dA, cache):
     
     # When z <= 0, you should set dz to 0 as well. 
     dZ[Z <= 0] = 0
-    
-    assert (dZ.shape == Z.shape)
-    
+        
     return dZ
 
 def sigmoid_backward(dA, cache):
@@ -97,9 +92,7 @@ def sigmoid_backward(dA, cache):
     
     s = 1/(1+np.exp(-Z))
     dZ = dA * s * (1-s)
-    
-    assert (dZ.shape == Z.shape)
-    
+        
     return dZ
 
 def softmax_backward(dA, cache):
@@ -120,9 +113,7 @@ def softmax_backward(dA, cache):
     sm = exps / np.sum(exps, axis = 0)
 
     dZ = dA * sm * (1-sm)
-    
-    assert (dZ.shape == Z.shape)
-    
+        
     return dZ
 
 def dictionary_to_vector(parameters):
@@ -130,12 +121,13 @@ def dictionary_to_vector(parameters):
     Roll all our parameters dictionary into a single vector satisfying our specific required shape.
     """
     keys = []
+    L = len(parameters) // 2
     count = 0
-    for key in ["W1", "b1", "W2", "b2", "W3", "b3"]:
+    for l in range(1,L + 1):
 
         # flatten parameter
-        new_vector = np.reshape(parameters[key], (-1,1))
-        keys = keys + [key]*new_vector.shape[0]
+        new_vector = np.reshape(parameters["W" + str(l)], (-1,1))
+        keys = keys + ["W" + str(l)]*new_vector.shape[0]
 
         if count == 0:
             theta = new_vector
@@ -143,19 +135,23 @@ def dictionary_to_vector(parameters):
             theta = np.concatenate((theta, new_vector), axis=0)
         count = count + 1
 
+        new_vector = np.reshape(parameters["b" + str(l)], (-1,1))
+        keys = keys + ["b" + str(l)]*new_vector.shape[0]
+
+        theta = np.concatenate((theta, new_vector), axis=0)
+
+
     return theta, keys
 
-def vector_to_dictionary(theta):
+def vector_to_dictionary(theta, p):
     """
     Unroll all our parameters dictionary from a single vector satisfying our specific required shape.
     """
     parameters = {}
-    parameters["W1"] = theta[:20].reshape((5,4))
-    parameters["b1"] = theta[20:25].reshape((5,1))
-    parameters["W2"] = theta[25:40].reshape((3,5))
-    parameters["b2"] = theta[40:43].reshape((3,1))
-    parameters["W3"] = theta[43:46].reshape((1,3))
-    parameters["b3"] = theta[46:47].reshape((1,1))
+    counter = 0
+    for key in p:
+        parameters[key] = theta[counter:(counter + p[key].size)].reshape(p[key].shape)
+        counter += p[key].size
 
     return parameters
 
@@ -163,17 +159,22 @@ def gradients_to_vector(gradients):
     """
     Roll all our gradients dictionary into a single vector satisfying our specific required shape.
     """
-
+    L = len(gradients) // 3
     count = 0
-    for key in ["dW1", "db1", "dW2", "db2", "dW3", "db3"]:
+    for l in range(1,L + 1):
         # flatten parameter
-        new_vector = np.reshape(gradients[key], (-1,1))
+        new_vector = np.reshape(gradients["dW" + str(l)], (-1,1))
         
         if count == 0:
             theta = new_vector
         else:
             theta = np.concatenate((theta, new_vector), axis=0)
         count = count + 1
+
+        new_vector = np.reshape(gradients["db" + str(l)], (-1,1))
+
+        theta = np.concatenate((theta, new_vector), axis=0)
+
 
     return theta
 
