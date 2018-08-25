@@ -451,9 +451,9 @@ class FCN1:
 	    m = AL.shape[1]
 	    Y = Y.reshape(AL.shape) # after this line, Y is the same shape as AL
 	    
-	    # Initializing the backpropagation (derivative of )
-	    #dAL = 2 * (AL - Y)
-	    dAL = 2 * (AL - Y)
+	    # Initializing the backpropagation (derivative of cost)
+	    dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL)) # Cross-entropy derivative
+	    #dAL = 2 * (AL - Y) # Mean Square Error derivative
 
 	    
 	    # Lth layer (SIGMOID -> LINEAR) gradients. Inputs: "AL, Y, caches". Outputs: "grads["dAL"], grads["dWL"], grads["dbL"]
@@ -519,10 +519,12 @@ class FCN1:
 		J_plus = np.zeros((num_parameters, 1))
 		J_minus = np.zeros((num_parameters, 1))
 		gradapprox = np.zeros((num_parameters, 1))
+		maxdif = 0
 
 		# Compute gradapprox
 		for i in range(num_parameters):
 			if i % 1000 == 0:
+				print()
 				print(i)
 		    
 			# Compute J_plus[i]. Inputs: "parameters_values, epsilon". Output = "J_plus[i]".
@@ -532,17 +534,23 @@ class FCN1:
 			thetaplus[i][0] += epsilon
 			# Step 2
 			AL, _ = self.L_model_forward(X, vector_to_dictionary(thetaplus, self.parameters))
-			J_plus[i] = self.compute_cost_mean_square_error(AL, Y)
+			J_plus[i] = self.compute_cost_cross_entropy(AL, Y)
 			### END CODE HERE ###
 
 			# Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
 			thetaminus = np.copy(parameters_values)                                     # Step 1
 			thetaminus[i][0] -= epsilon                               # Step 2    
 			AL, _ = self.L_model_forward(X, vector_to_dictionary(thetaminus, self.parameters))    
-			J_minus[i] = self.compute_cost_mean_square_error(AL, Y)                               # Step 3
+			J_minus[i] = self.compute_cost_cross_entropy(AL, Y)                               # Step 3
 
 			# Compute gradapprox[i]
 			gradapprox[i] = (J_plus[i] - J_minus[i]) / (2. * epsilon)
+			dif = np.squeeze(grad[i] - gradapprox[i])
+
+			print(dif,"      \r", end='')
+			if abs(dif) > abs(maxdif):
+				maxdif = dif
+				print(i, maxdif)
 
 		# Compare gradapprox to backward propagation gradients by computing difference.
 		### START CODE HERE ### (approx. 1 line)

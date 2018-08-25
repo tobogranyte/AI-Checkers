@@ -1,0 +1,8 @@
+Softmax:
+There is a mistake in the backward propagation! difference = 0.6593782043630477
+Sigmoid:
+Your backward propagation works perfectly fine! difference = 5.3677365733335105e-08
+Softmax second:
+There is a mistake in the backward propagation! difference = 0.4953447367479226
+Softmax third:
+There is a mistake in the backward propagation! difference = 5.526314030631252e-07

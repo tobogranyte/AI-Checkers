@@ -110,9 +110,11 @@ def softmax_backward(dA, cache):
     Z = cache
     
     exps = np.exp(Z)
-    sm = exps / np.sum(exps, axis = 0)
+    sm = exps / np.sum(exps, axis = 0, keepdims=True)
 
-    dZ = dA * sm * (1-sm)
+    dA_sm = np.sum(dA * sm, axis = 0)
+
+    dZ = sm * (dA - dA_sm)
         
     return dZ
 
