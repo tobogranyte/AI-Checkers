@@ -14,9 +14,9 @@ class Game:
 		self.red_player = red_player # assign the red player
 		self.black_player = black_player # assign the black player
 		self.jump_rule = jump_rule # are available jumps mandatory to make?
+		np.set_printoptions(linewidth=2000)
 
 	def play_game(self):
-		#game_history = open('game_history.txt','w')
 		game_history = str('')
 		stalemate = False
 		win = False
@@ -42,7 +42,15 @@ class Game:
 					move_array = board_legal_moves * board_move
 				self.board.move_piece(player.color, piece_number, np.argmax(move))
 				player.increment_move_count()
-				#game_history.write(self.board.visual_state())
+				if player == self.red_player:
+					AL, move_attempts, illegal_mask = player.move_details()
+					game_history += 'AL         '
+					game_history += str(AL.flatten()) + '\n'
+					game_history += 'Legal Array'
+					game_history += str(illegal_mask.flatten().astype('int')) + '\n'
+					for move_attempt in move_attempts:
+						game_history += '           '
+						game_history += str(move_attempt.flatten()) + '\n'
 				game_history += self.board.visual_state()
 				if np.max(move_array) == 2:
 					count = self.board.piece_count(color = player.other_color)
@@ -67,14 +75,9 @@ class Game:
 			else:
 				win = True
 				side = player.other_color
-		#game_history.close()
-		print(game_history)
-		input('Pause...')
 
-		return win, side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
-				
-					
-
+		return win, side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count, game_history
+		
 	def static_playtest(self):
 		self.board.visual_state()
 		#print(self.board.red_numbers

@@ -40,6 +40,9 @@ class Player:
 				move = model_move[(4 * piece_number):((4 * piece_number) + 4)]
 		return move, piece_number
 
+	def move_details(self):
+		return self.model.move_details()
+
 	def train_model(self):
 		cost, params = self.model.train()
 		return cost, params

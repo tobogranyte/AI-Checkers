@@ -152,13 +152,20 @@ class FCN1:
 	        
 	    return parameters
 
+	def move_details(self):
+		return self.AL, self.move_attempts, self.illegal_mask
+
 	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
 		if illegal == False: # only run forward prop again if it's a brand new move. If the model is just trying again, just get another random choice from the same probs
 			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
-			self.X = self.get_input_vector(board, self.board_legal_moves, color, jump_piece_number = None)
+			self.illegal_mask = np.zeros((48))
+			self.illegal_mask[self.board_legal_moves != 0] = 1
+			self.X = self.get_input_vector(board, color, jump_piece_number = None)
 			self.AL, caches = self.L_model_forward(self.X, self.parameters)
+			self.move_attempts = [] # start a new list of attempted moves
 		move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()/np.sum(self.AL.flatten())))
 		one_hot_move = np.eye(48, dtype = 'int')[move]
+		self.move_attempts.append(one_hot_move) # add the latest move attempt to the list
 		new_move = one_hot_move.reshape(one_hot_move.size, -1)
 		if illegal == False:
 			self.moves.append(new_move)
@@ -219,9 +226,7 @@ class FCN1:
 
 		return Y
 
-	def get_input_vector(self, board, board_legal_moves, color, jump_piece_number):
-		self.illegal_mask = np.zeros((48))
-		self.illegal_mask[board_legal_moves != 0] = 1
+	def get_input_vector(self, board, color, jump_piece_number):
 		if color == 'Red':
 			v = board.red_home_view().flatten()
 		else:
@@ -232,7 +237,6 @@ class FCN1:
 		else:
 			j_vector = np.zeros((12))
 		v = np.append(v, j_vector)
-		# v = np.append(v, self.illegal_mask)
 
 		return v.reshape(v.size, -1)
 

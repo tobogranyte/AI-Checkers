@@ -29,6 +29,12 @@ games_hist = []
 cost_hist = []
 params = {}
 
+def write_game(gh, number, pct):
+	game_history = open('game_history_'+ str(number) + '_' + str(round(pct, 3)) + '.txt','w')
+	game_history.write(gh)
+	game_history.close()
+
+
 if input("Symmetric Models [Y/n]?") == "Y":
 	symmetric = True
 	s_model = input("Model name:")
@@ -89,7 +95,10 @@ if input("Play game [Y/n]:") == "Y":
 	while True:
 		game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule)
 		games += 1
-		win, side, red_piece_count, black_piece_count, red_move_count, black_move_count, red_illegal_count, black_illegal_count = game.play_game()
+		win, side, red_piece_count, black_piece_count, red_move_count, black_move_count, red_illegal_count, black_illegal_count, game_history = game.play_game()
+		if red_illegal_count/(red_illegal_count + red_move_count) > .98:
+			write_game(game_history, games, red_illegal_count/(red_illegal_count + red_move_count))
+			print('Game ' + str(games) + ' was ' + str((red_illegal_count * 100)/(red_illegal_count + red_move_count)) + '% illegal.')
 		red_illegal_total += red_illegal_count
 		black_illegal_total += black_illegal_count
 		red_move_total += red_move_count
