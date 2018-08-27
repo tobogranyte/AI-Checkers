@@ -7,7 +7,7 @@ import os
 class FCN1:
 
 	def __init__(self):
-		self.layers_dims = [524, 1024, 524, 262, 131, 48] #  6-layer model
+		self.layers_dims = [537, 1024, 524, 262, 131, 48] #  6-layer model
 		params, available = self.check_for_params()
 		checkpoint = False
 		name = ''
@@ -182,15 +182,15 @@ class FCN1:
 			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters)
 
 			if i == 0:
-				#pre_cost = self.compute_cost_mean_square_error(AL, Y)
-				pre_cost = self.compute_cost_cross_entropy(AL, Y)
+				pre_cost = self.compute_cost_mean_square_error(AL, Y)
+				#pre_cost = self.compute_cost_cross_entropy(AL, Y)
 
 			grads = self.L_model_backward(AL, Y, caches)
 
 			self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
 
-		#cost = self.compute_cost_mean_square_error(AL, Y)
-		cost = self.compute_cost_cross_entropy(AL, Y)
+		cost = self.compute_cost_mean_square_error(AL, Y)
+		#cost = self.compute_cost_cross_entropy(AL, Y)
 		self.trainings += 1
 		self.plot_activations()
 		legal_mean, illegal_mean = self.get_means(AL, np.hstack(self.illegal_masks))
@@ -229,9 +229,12 @@ class FCN1:
 		v = np.append(v, board.get_piece_vector(color))
 		if jump_piece_number != None:
 			j_vector = np.eye(12)[jump_piece_number]
+			jump = np.array([1])
 		else:
 			j_vector = np.zeros((12))
+			jump = np.array([0])
 		v = np.append(v, j_vector)
+		v = np.append(v, jump)	
 		# v = np.append(v, self.illegal_mask)
 
 		return v.reshape(v.size, -1)
@@ -269,7 +272,7 @@ class FCN1:
 	    AL, cache = self.linear_activation_forward(A, 
                                             	 parameters["W" + str(L)], 
 	                                             parameters["b" + str(L)], 
-	                                             activation='softmax')
+	                                             activation='sigmoid')
 	    caches.append(cache)
 	    
 	    assert(AL.shape == (self.layers_dims[L],X.shape[1]))
@@ -452,13 +455,13 @@ class FCN1:
 	    Y = Y.reshape(AL.shape) # after this line, Y is the same shape as AL
 	    
 	    # Initializing the backpropagation (derivative of cost)
-	    dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL)) # Cross-entropy derivative
-	    #dAL = 2 * (AL - Y) # Mean Square Error derivative
+	    #dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL)) # Cross-entropy derivative
+	    dAL = 2 * (AL - Y) # Mean Square Error derivative
 
 	    
 	    # Lth layer (SIGMOID -> LINEAR) gradients. Inputs: "AL, Y, caches". Outputs: "grads["dAL"], grads["dWL"], grads["dbL"]
 	    current_cache = caches[-1]
-	    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = self.linear_activation_backward(dAL, current_cache, activation="softmax")
+	    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = self.linear_activation_backward(dAL, current_cache, activation="sigmoid")
 	    
 	    for l in reversed(range(L-1)):
 	        # lth layer: (RELU -> LINEAR) gradients.

@@ -29,15 +29,22 @@ class Board:
 	def get_piece_vector(self, color):
 		if color == 'Red':
 			numbers = self.red_numbers # red piece numbers for all board locations (red vantage point)
+			piece = self.red_piece				
 		else:
-			numbers = self.black_numbers # blak
-		v = np.zeros((384))
+			numbers = self.black_numbers # black
+			piece = self.black_piece
+		v = np.zeros((396))
+		in_play = np.zeros((12))
 		eye = np.eye(12)
 		for i in range(numbers.size):
 			n = numbers.flatten()[i]
 			if n != -1:
 				v[(i * 12):(i * 12) + 12] = eye[n]
-		return v.T
+		for p in piece:
+			if p.in_play == True
+			in_play[p.number] = 1
+		v[384:396] = in_play
+		return v
 
 	def black_home_view(self): 
 		# return the black state view ("from the other side of the board"), and with the red/black
