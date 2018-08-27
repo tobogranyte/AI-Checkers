@@ -155,7 +155,7 @@ class FCN1:
 	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
 		if illegal == False: # only run forward prop again if it's a brand new move. If the model is just trying again, just get another random choice from the same probs
 			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
-			self.X = self.get_input_vector(board, self.board_legal_moves, color, jump_piece_number = None)
+			self.X = self.get_input_vector(board, self.board_legal_moves, color, jump_piece_number = jump_piece_number)
 			self.AL, caches = self.L_model_forward(self.X, self.parameters)
 		move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()/np.sum(self.AL.flatten())))
 		one_hot_move = np.eye(48, dtype = 'int')[move]
