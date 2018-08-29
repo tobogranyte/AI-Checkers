@@ -173,11 +173,11 @@ class FCN1:
 
 	def train(self):
 		params = {}
-		learning_rate = 0.0075
+		learning_rate = 0.075
 
 		Y = self.make_Y(np.hstack(self.probabilities), np.hstack(self.illegal_masks))
 
-		for i in range(0, 1):
+		for i in range(0, 10):
 
 			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters)
 
@@ -216,6 +216,9 @@ class FCN1:
 	def make_Y(self, probs, masks):
 		Y = np.minimum(probs, masks)
 		Y[Y > 0] = 1
+		S = np.sum(Y, axis = 0)
+		S[S == 0] = 1
+		Y = Y / (S)
 
 		return Y
 
@@ -272,7 +275,7 @@ class FCN1:
 	    AL, cache = self.linear_activation_forward(A, 
                                             	 parameters["W" + str(L)], 
 	                                             parameters["b" + str(L)], 
-	                                             activation='sigmoid')
+	                                             activation='softmax')
 	    caches.append(cache)
 	    
 	    assert(AL.shape == (self.layers_dims[L],X.shape[1]))
@@ -461,7 +464,7 @@ class FCN1:
 	    
 	    # Lth layer (SIGMOID -> LINEAR) gradients. Inputs: "AL, Y, caches". Outputs: "grads["dAL"], grads["dWL"], grads["dbL"]
 	    current_cache = caches[-1]
-	    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = self.linear_activation_backward(dAL, current_cache, activation="sigmoid")
+	    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = self.linear_activation_backward(dAL, current_cache, activation="softmax")
 	    
 	    for l in reversed(range(L-1)):
 	        # lth layer: (RELU -> LINEAR) gradients.
@@ -535,10 +538,9 @@ class FCN1:
 			### START CODE HERE ### (approx. 3 lines)
 			thetaplus = np.copy(parameters_values)                                      # Step 1
 			thetaplus[i][0] += epsilon
-			# Step 2
+
 			AL, _ = self.L_model_forward(X, vector_to_dictionary(thetaplus, self.parameters))
 			J_plus[i] = self.compute_cost_cross_entropy(AL, Y)
-			### END CODE HERE ###
 
 			# Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
 			thetaminus = np.copy(parameters_values)                                     # Step 1

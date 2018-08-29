@@ -41,8 +41,8 @@ class Board:
 			if n != -1:
 				v[(i * 12):(i * 12) + 12] = eye[n]
 		for p in piece:
-			if p.in_play == True
-			in_play[p.number] = 1
+			if p.in_play == True:
+				in_play[p.number] = 1
 		v[384:396] = in_play
 		return v
 
