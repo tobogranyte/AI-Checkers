@@ -95,10 +95,10 @@ class FCN1:
 		self.illegal_masks = []
 		self.probabilities = []
 		self.X_batch = []
-		self.attempts = []
-		self.attempts_illegal_masks = []
-		self.attempts_probabilities = []
-		self.attempts_X_batch = []
+		self.attempts = [] # list with attempted (illegal) moves
+		self.attempts_illegal_masks = [] # parallel list with illegal masks for those attempts
+		self.attempts_probabilities = [] # parallel list with probability vectors for those attempts
+		self.attempts_X_batch = [] # parallel list with board inputs for those attempts
 
 	def save_parameters(self):
 		self.save_obj(self.parameters, 'parameters_temp')
@@ -157,29 +157,29 @@ class FCN1:
 	    return parameters
 
 	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
-		if illegal == False: # only run forward prop again if it's a brand new move. If the model is just trying again, just get another random choice from the same probs
-			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
-			self.illegal_mask = np.zeros((48))
-			self.illegal_mask[self.board_legal_moves != 0] = 1
-			self.illegal_mask = self.illegal_mask.reshape(self.illegal_mask.size, -1)
-			self.X = self.get_input_vector(board, self.board_legal_moves, color, jump_piece_number = jump_piece_number)
-			self.AL, caches = self.L_model_forward(self.X, self.parameters)
-		move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()/np.sum(self.AL.flatten())))
-		one_hot_move = np.eye(48, dtype = 'int')[move]
-		new_move = one_hot_move.reshape(one_hot_move.size, -1)
+		if illegal == False: # everything within this sets up the stuff that won't change until a legal move is executed
+			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule) # get legal moves for current board position
+			self.illegal_mask = np.zeros((48)) # create a holder for the illegal mask (starting filled with zeros)
+			self.illegal_mask[self.board_legal_moves != 0] = 1 # ones for anything that's legal
+			self.illegal_mask = self.illegal_mask.reshape(self.illegal_mask.size, -1) # make into a column vector
+			self.X = self.get_input_vector(board, self.board_legal_moves, color, jump_piece_number = jump_piece_number) # create the input vector
+			self.AL, caches = self.L_model_forward(self.X, self.parameters) # run forward prop
+		move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()/np.sum(self.AL.flatten()))) # roll the dice and pick a move from the output probs
+		one_hot_move = np.eye(48, dtype = 'int')[move] # turn it into a one-hot vector
+		new_move = one_hot_move.reshape(one_hot_move.size, -1) # make it into a column vector
 
 		"""
 		This block adds a training example (moves, probs, inputs and masks) for every attempt, not just successful attempts.
 		This is not what you'd want to use for training anything but learning to make legal moves.
 		new_move: this is the move that was attempted
 		"""
-		self.attempts.append(new_move)
-		self.attempts_probabilities.append(self.AL)
-		self.attempts_X_batch.append(self.X)
-		self.attempts_illegal_masks.append(self.illegal_mask)
+		self.attempts.append(new_move) # append the attempted move to the list of attempts
+		self.attempts_probabilities.append(self.AL) # append the probabilities to the list of probs . It will append the same thing for every attempt (lots of repeats).
+		self.attempts_X_batch.append(self.X) # append the input vector. It will append the same thing for every attempt (lots of repeats).
+		self.attempts_illegal_masks.append(self.illegal_mask) # append the illegal mask. It will append the same thing for every attempt (lots of repeats).
 
 		"""
-		This block creates the same basic set of data, but only for each successful move.
+		This block creates the same basic set of data, but only for each successful move. Not necessary if the above block is being used
 		"""
 
 		if illegal == False:
