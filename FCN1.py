@@ -95,6 +95,10 @@ class FCN1:
 		self.illegal_masks = []
 		self.probabilities = []
 		self.X_batch = []
+		self.attempts = []
+		self.attempts_illegal_masks = []
+		self.attempts_probabilities = []
+		self.attempts_X_batch = []
 
 	def save_parameters(self):
 		self.save_obj(self.parameters, 'parameters_temp')
@@ -155,16 +159,33 @@ class FCN1:
 	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
 		if illegal == False: # only run forward prop again if it's a brand new move. If the model is just trying again, just get another random choice from the same probs
 			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
+			self.illegal_mask = np.zeros((48))
+			self.illegal_mask[self.board_legal_moves != 0] = 1
+			self.illegal_mask = self.illegal_mask.reshape(self.illegal_mask.size, -1)
 			self.X = self.get_input_vector(board, self.board_legal_moves, color, jump_piece_number = jump_piece_number)
 			self.AL, caches = self.L_model_forward(self.X, self.parameters)
 		move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()/np.sum(self.AL.flatten())))
 		one_hot_move = np.eye(48, dtype = 'int')[move]
 		new_move = one_hot_move.reshape(one_hot_move.size, -1)
+
+		"""
+		This block adds a training example (moves, probs, inputs and masks) for every attempt, not just successful attempts.
+		This is not what you'd want to use for training anything but learning to make legal moves.
+		new_move: this is the move that was attempted
+		"""
+		self.attempts.append(new_move)
+		self.attempts_probabilities.append(self.AL)
+		self.attempts_X_batch.append(self.X)
+		self.attempts_illegal_masks.append(self.illegal_mask)
+
+		"""
+		This block creates the same basic set of data, but only for each successful move.
+		"""
+
 		if illegal == False:
 			self.moves.append(new_move)
 			self.probabilities.append(self.AL)
 			self.X_batch.append(self.X)
-			self.illegal_mask = self.illegal_mask.reshape(self.illegal_mask.size, -1)
 			self.illegal_masks.append(self.illegal_mask)
 		else:
 			self.moves[-1] = new_move
@@ -173,13 +194,13 @@ class FCN1:
 
 	def train(self):
 		params = {}
-		learning_rate = 0.075
+		learning_rate = 0.0075
 
-		Y = self.make_Y(np.hstack(self.probabilities), np.hstack(self.illegal_masks))
+		Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks))
 
-		for i in range(0, 10):
+		for i in range(0, 1):
 
-			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters)
+			AL, caches = self.L_model_forward(np.hstack(self.attempts_X_batch), self.parameters)
 
 			if i == 0:
 				pre_cost = self.compute_cost_mean_square_error(AL, Y)
@@ -193,7 +214,7 @@ class FCN1:
 		#cost = self.compute_cost_cross_entropy(AL, Y)
 		self.trainings += 1
 		self.plot_activations()
-		legal_mean, illegal_mean = self.get_means(AL, np.hstack(self.illegal_masks))
+		legal_mean, illegal_mean = self.get_means(AL, np.hstack(self.attempts_illegal_masks))
 
 		self.legal_means.append(legal_mean)
 		self.illegal_means.append(illegal_mean)
@@ -223,8 +244,6 @@ class FCN1:
 		return Y
 
 	def get_input_vector(self, board, board_legal_moves, color, jump_piece_number):
-		self.illegal_mask = np.zeros((48))
-		self.illegal_mask[board_legal_moves != 0] = 1
 		if color == 'Red':
 			v = board.red_home_view().flatten()
 		else:
@@ -238,7 +257,6 @@ class FCN1:
 			jump = np.array([0])
 		v = np.append(v, j_vector)
 		v = np.append(v, jump)	
-		# v = np.append(v, self.illegal_mask)
 
 		return v.reshape(v.size, -1)
 
