@@ -204,7 +204,7 @@ class FCN1:
 		Y = self.make_Y(np.hstack(self.probabilities), np.hstack(self.illegal_masks)) # use if only training on legal moves, not all moves
 #		Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
 
-		train_weights = np.hstack(self.num_attempts_batch)
+		weights = np.hstack(self.num_attempts_batch)
 
 		for i in range(0, 1):
 
@@ -212,14 +212,14 @@ class FCN1:
 #			AL, caches = self.L_model_forward(np.hstack(self.attempts_X_batch), self.parameters) # use if training on all illegal attempts
 
 			if i == 0:
-				pre_cost = self.compute_cost_mean_square_error(AL, Y)
+				pre_cost = self.compute_cost_mean_square_error(AL, Y, weights)
 				#pre_cost = self.compute_cost_cross_entropy(AL, Y)
 
-			grads = self.L_model_backward(AL, Y, caches)
+			grads = self.L_model_backward(AL, Y, caches, weights)
 
 			self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
 
-		cost = self.compute_cost_mean_square_error(AL, Y, train_weights)
+		cost = self.compute_cost_mean_square_error(AL, Y, weights)
 		#cost = self.compute_cost_cross_entropy(AL, Y)
 		self.trainings += 1
 		self.plot_activations()
@@ -487,7 +487,7 @@ class FCN1:
 	    
 	    # Initializing the backpropagation (derivative of cost)
 	    #dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL)) # Cross-entropy derivative
-	    dAL = 2 * (AL - Y) # Mean Square Error derivative
+	    dAL = 2 * weights * (AL - Y) # Mean Square Error derivative
 
 	    
 	    # Lth layer (SIGMOID -> LINEAR) gradients. Inputs: "AL, Y, caches". Outputs: "grads["dAL"], grads["dWL"], grads["dbL"]
