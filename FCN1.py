@@ -99,6 +99,8 @@ class FCN1:
 		self.attempts_illegal_masks = [] # parallel list with illegal masks for those attempts
 		self.attempts_probabilities = [] # parallel list with probability vectors for those attempts
 		self.attempts_X_batch = [] # parallel list with board inputs for those attempts
+		self.num_attempts = 0 # total number of attempts to get to a legal move
+		self.num_attempts_batch = []
 
 	def save_parameters(self):
 		self.save_obj(self.parameters, 'parameters_temp')
@@ -157,6 +159,7 @@ class FCN1:
 	    return parameters
 
 	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
+		self.num_attempts += 1
 		if illegal == False: # everything within this sets up the stuff that won't change until a legal move is executed
 			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule) # get legal moves for current board position
 			self.illegal_mask = np.zeros((48)) # create a holder for the illegal mask (starting filled with zeros)
@@ -173,10 +176,10 @@ class FCN1:
 		This is not what you'd want to use for training anything but learning to make legal moves.
 		new_move: this is the move that was attempted
 		"""
-		self.attempts.append(new_move) # append the attempted move to the list of attempts
-		self.attempts_probabilities.append(self.AL) # append the probabilities to the list of probs . It will append the same thing for every attempt (lots of repeats).
-		self.attempts_X_batch.append(self.X) # append the input vector. It will append the same thing for every attempt (lots of repeats).
-		self.attempts_illegal_masks.append(self.illegal_mask) # append the illegal mask. It will append the same thing for every attempt (lots of repeats).
+#		self.attempts.append(new_move) # append the attempted move to the list of attempts
+#		self.attempts_probabilities.append(self.AL) # append the probabilities to the list of probs . It will append the same thing for every attempt (lots of repeats).
+#		self.attempts_X_batch.append(self.X) # append the input vector. It will append the same thing for every attempt (lots of repeats).
+#		self.attempts_illegal_masks.append(self.illegal_mask) # append the illegal mask. It will append the same thing for every attempt (lots of repeats).
 
 		"""
 		This block creates the same basic set of data, but only for each successful move. Not necessary if the above block is being used
@@ -187,6 +190,8 @@ class FCN1:
 			self.probabilities.append(self.AL)
 			self.X_batch.append(self.X)
 			self.illegal_masks.append(self.illegal_mask)
+			self.num_attempts_batch.append(self.num_attempts)
+			self.num_attempts = 0
 		else:
 			self.moves[-1] = new_move
 
@@ -194,13 +199,17 @@ class FCN1:
 
 	def train(self):
 		params = {}
-		learning_rate = 0.0075
+		learning_rate = 0.075
 
-		Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks))
+		Y = self.make_Y(np.hstack(self.probabilities), np.hstack(self.illegal_masks)) # use if only training on legal moves, not all moves
+#		Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
+
+		train_weights = np.hstack(self.num_attempts_batch)
 
 		for i in range(0, 1):
 
-			AL, caches = self.L_model_forward(np.hstack(self.attempts_X_batch), self.parameters)
+			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters) # use if only training on legal moves, not all moves
+#			AL, caches = self.L_model_forward(np.hstack(self.attempts_X_batch), self.parameters) # use if training on all illegal attempts
 
 			if i == 0:
 				pre_cost = self.compute_cost_mean_square_error(AL, Y)
@@ -210,11 +219,12 @@ class FCN1:
 
 			self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
 
-		cost = self.compute_cost_mean_square_error(AL, Y)
+		cost = self.compute_cost_mean_square_error(AL, Y, train_weights)
 		#cost = self.compute_cost_cross_entropy(AL, Y)
 		self.trainings += 1
 		self.plot_activations()
-		legal_mean, illegal_mean = self.get_means(AL, np.hstack(self.attempts_illegal_masks))
+		legal_mean, illegal_mean = self.get_means(AL, np.hstack(self.illegal_masks)) # use if only training on legal moves, not all moves
+#		legal_mean, illegal_mean = self.get_means(AL, np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
 
 		self.legal_means.append(legal_mean)
 		self.illegal_means.append(illegal_mean)
@@ -380,7 +390,7 @@ class FCN1:
 	    
 	    return cost
 
-	def compute_cost_mean_square_error(self, AL, Y):
+	def compute_cost_mean_square_error(self, AL, Y, weights):
 		"""
 		Implement the mean square error cost function.
 
@@ -394,7 +404,7 @@ class FCN1:
 		m = Y.shape[1]
 
 		# Compute loss from aL and y.
-		cost = (1./ m) * np.sum(np.square(Y - AL))
+		cost = (1./ m) * np.sum(weights * np.square(Y - AL))
 
 		cost = np.squeeze(cost)      # To make sure your cost's shape is what we expect (e.g. this turns [[17]] into 17).
 		assert(cost.shape == ())
