@@ -12,3 +12,6 @@ class RMM:
 			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule)
 
 		return one_hot_move, self.board_legal_moves
+
+	def complete_move(self):
+		pass

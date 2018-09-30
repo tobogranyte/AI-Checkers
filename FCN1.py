@@ -199,14 +199,14 @@ class FCN1:
 
 	def train(self):
 		params = {}
-		learning_rate = 0.075
+		learning_rate = 0.0075
 
 		Y = self.make_Y(np.hstack(self.probabilities), np.hstack(self.illegal_masks)) # use if only training on legal moves, not all moves
 #		Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
 
 		weights = np.hstack(self.num_attempts_batch)
 
-		for i in range(0, 1):
+		for i in range(0, 10):
 
 			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters) # use if only training on legal moves, not all moves
 #			AL, caches = self.L_model_forward(np.hstack(self.attempts_X_batch), self.parameters) # use if training on all illegal attempts
@@ -463,7 +463,7 @@ class FCN1:
 	    
 	    return dA_prev, dW, db
 
-	def L_model_backward(self, AL, Y, caches):
+	def L_model_backward(self, AL, Y, caches, weights):
 	    """
 	    Implement the backward propagation for the [LINEAR->RELU] * (L-1) -> LINEAR -> SIGMOID group
 	    

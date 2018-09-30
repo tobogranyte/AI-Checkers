@@ -67,7 +67,7 @@ if input("Play game [Y/n]:") == "Y":
 	else:
 		jump_rule = False
 
-	plt.figure(1)
+	plt.figure(1, dpi=75, figsize=(16,16))
 	plt.ion()
 	ax1 = plt.subplot2grid((30, 1), (0, 0), colspan=2, rowspan=8)
 	ax2 = plt.subplot2grid((30, 1), (12, 0), colspan=2, rowspan=8)
@@ -85,6 +85,7 @@ if input("Play game [Y/n]:") == "Y":
 	ax3.set_xlabel('Games')
 	ax3.set_ylabel('Cost')
 	plt.show()
+
 
 	while True:
 		game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule)
