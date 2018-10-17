@@ -29,8 +29,6 @@ def softmax(Z):
     cache --a python dictionary containing "A" ; stored for computing the backward pass efficiently
     """
 
-    M = np.amax(Z, axis = 0, keepdims = True)
-    Z = Z - M
     exps = np.exp(Z)
     A = exps / np.sum(exps, axis = 0)
     #print("Z, exps")

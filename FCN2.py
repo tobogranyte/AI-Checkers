@@ -74,7 +74,7 @@ class FCN2:
 		self.AL, caches = self.L_model_forward(g_norm, self.parameters)
 		Y = np.zeros((48,1))
 		L = len(caches)
-		for l in reversed(range(L-1)):
+		for l in reversed(range(L)):
 			sp = 100 + (10 * (L - 1)) + (l + 1)
 			plt.subplot(sp)
 			linear_cache, activation_cache = caches[l]
@@ -112,8 +112,8 @@ class FCN2:
 		self.num_attempts = 0 # total number of attempts to get to a legal move
 		self.num_attempts_batch = []
 
-	def save_parameters(self):
-		self.save_obj(self.parameters, 'parameters_temp')
+	def save_parameters(self, type):
+		self.save_obj(self.parameters, 'parameters_temp_' + type)
 
 	def save_obj(self, obj, name ):
 		with open('FCN2/'+ name + '.pkl', 'wb') as f:
@@ -126,7 +126,7 @@ class FCN2:
 
 	def load_checkpoint(self, name):
 		try:
-			checkpoint = pickle.load(open("FCN1/" + name + ".pkl", "rb"))
+			checkpoint = pickle.load(open("FCN2/" + name + ".pkl", "rb"))
 		except (OSError, IOError) as e:
 			checkpoint = False
 			print("Can't find that checkpoint...")
@@ -243,6 +243,15 @@ class FCN2:
 
 			self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
 
+		L = len(caches)
+		mins = []
+		maxes = []
+		for l in reversed(range(L)):
+			_, activation_cache = caches[l]
+			print(l)
+			mins.append(np.amin(activation_cache))
+			maxes.append(np.amax(activation_cache))
+
 		cost = self.compute_cost_mean_square_error(AL, Y, weights)
 		#cost = self.compute_cost_cross_entropy(AL, Y)
 		self.trainings += 1
@@ -256,6 +265,8 @@ class FCN2:
 		params["illegal_means"] = self.illegal_means
 		params["legal_means"] = self.legal_means
 		params["trainings"] = self.trainings
+		params["mins"] = mins
+		params["maxes"] = maxes
 
 		self.initialize_training_batch()
 
@@ -312,7 +323,6 @@ class FCN2:
 	    caches = []
 	    A = X
 	    L = len(parameters) // 2                  # number of layers in the neural network
-	    
 	    # Implement [LINEAR -> RELU]*(L-1). Add "cache" to the "caches" list.
 	    for l in range(1, L):
 	        A_prev = A 
@@ -329,7 +339,8 @@ class FCN2:
 	                                             parameters["b" + str(L)], 
 	                                             activation='softmax')
 	    caches.append(cache)
-	    
+
+
 	    assert(AL.shape == (self.layers_dims[L],X.shape[1]))
 	            
 	    return AL, caches
@@ -391,6 +402,7 @@ class FCN2:
 	    cache = (linear_cache, activation_cache)
 
 	    return A, cache
+
 
 	def compute_cost_cross_entropy(self, AL, Y):
 	    """

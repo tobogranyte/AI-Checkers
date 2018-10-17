@@ -45,8 +45,8 @@ class Player:
 		cost, params = self.model.train()
 		return cost, params
 
-	def save_parameters(self):
-		self.model.save_parameters()
+	def save_parameters(self, type):
+		self.model.save_parameters(type)
 
 	def increment_move_count(self):
 		self.move_count += 1

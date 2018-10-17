@@ -25,6 +25,20 @@ red_win_pct_hist = []
 black_win_pct_hist = []
 red_illegal_pct_hist = []
 black_illegal_pct_hist = []
+max_hist0 = []
+max_hist1 = []
+max_hist2 = []
+max_hist3 = []
+max_hist4 = []
+max_hist5 = []
+max_hist6 = []
+min_hist0 = []
+min_hist1 = []
+min_hist2 = []
+min_hist3 = []
+min_hist4 = []
+min_hist5 = []
+min_hist6 = []
 games_hist = []
 cost_hist = []
 params = {}
@@ -69,9 +83,10 @@ if input("Play game [Y/n]:") == "Y":
 
 	plt.figure(1, dpi=75, figsize=(16,16))
 	plt.ion()
-	ax1 = plt.subplot2grid((30, 1), (0, 0), colspan=2, rowspan=8)
-	ax2 = plt.subplot2grid((30, 1), (12, 0), colspan=2, rowspan=8)
-	ax3 = plt.subplot2grid((30, 1), (22, 0), colspan=2, rowspan=8)
+	ax1 = plt.subplot2grid((40, 1), (0, 0), colspan=2, rowspan=8)
+	ax2 = plt.subplot2grid((40, 1), (12, 0), colspan=2, rowspan=8)
+	ax3 = plt.subplot2grid((40, 1), (22, 0), colspan=2, rowspan=8)
+	ax4 = plt.subplot2grid((40, 1), (32, 0), colspan=2, rowspan=8)
 	#ax1.set_title('Win Percentage')
 	#ax1.set_xlabel('Games')
 	#ax1.set_ylabel('Percentage')
@@ -84,6 +99,9 @@ if input("Play game [Y/n]:") == "Y":
 	ax3.set_title('Cost')
 	ax3.set_xlabel('Games')
 	ax3.set_ylabel('Cost')
+	ax4.set_title('Min/Max')
+	ax4.set_xlabel('Games')
+	ax4.set_ylabel('Min/Max')
 	plt.show()
 
 
@@ -118,6 +136,12 @@ if input("Play game [Y/n]:") == "Y":
 					cost, params = red_player.train_model()
 					illegal_means = params["illegal_means"]
 					legal_means = params["legal_means"]
+					minimums = params["mins"]
+					maximums = params["maxes"]
+					if games % (train_games * 2) == 0:
+						red_player.save_parameters("even")
+					else:
+						red_player.save_parameters("odd")
 				if train_black == "Y":
 					print("Training Black...")
 					black_player.train_model()
@@ -126,14 +150,37 @@ if input("Play game [Y/n]:") == "Y":
 			black_win_pct_hist.append(black_win_pct)
 			red_illegal_pct_hist.append(red_illegal_pct)
 			black_illegal_pct_hist.append(black_illegal_pct)
+			max_hist0.append(maximums[0])
+			max_hist1.append(maximums[1])
+			max_hist2.append(maximums[2])
+			max_hist3.append(maximums[3])
+			max_hist4.append(maximums[4])
+			max_hist5.append(maximums[5])
+			min_hist0.append(minimums[0])
+			min_hist1.append(minimums[1])
+			min_hist2.append(minimums[2])
+			min_hist3.append(minimums[3])
+			min_hist4.append(minimums[4])
+			min_hist5.append(minimums[5])
 			cost_hist.append(cost)
 			games_hist.append(games)
 			if (params["trainings"] % plot_interval == 0) or params["trainings"] < 100:
-				red_player.save_parameters()
 				#ax1.plot(games_hist, red_win_pct_hist, 'r-', games_hist, black_win_pct_hist, 'k-')
-				ax1.plot(games_hist, illegal_means, 'r-', games_hist, legal_means, 'k-')
+				ax1.plot(games_hist, illegal_means, 'r-', games_hist, legal_means, 'g-')
 				ax2.plot(games_hist, red_illegal_pct_hist, 'r-', games_hist, black_illegal_pct_hist, 'k-')
 				ax3.semilogy(games_hist, cost_hist, 'k-')
+				ax4.plot(games_hist, max_hist0, 'r-')
+				ax4.plot(games_hist, max_hist1, 'g-')
+				ax4.plot(games_hist, max_hist2, 'b-')
+				ax4.plot(games_hist, max_hist3, 'c-')
+				ax4.plot(games_hist, max_hist4, 'm-')
+				ax4.plot(games_hist, max_hist5, 'k-')
+				ax4.plot(games_hist, min_hist0, 'r-')
+				ax4.plot(games_hist, min_hist1, 'g-')
+				ax4.plot(games_hist, min_hist2, 'b-')
+				ax4.plot(games_hist, min_hist3, 'c-')
+				ax4.plot(games_hist, min_hist4, 'm-')
+				ax4.plot(games_hist, min_hist5, 'k-')
 				plt.draw()
 				plt.pause(0.001)
 			red_wins = 0
