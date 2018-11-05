@@ -138,10 +138,7 @@ if input("Play game [Y/n]:") == "Y":
 					legal_means = params["legal_means"]
 					minimums = params["mins"]
 					maximums = params["maxes"]
-					if games % (train_games * 2) == 0:
-						red_player.save_parameters("even")
-					else:
-						red_player.save_parameters("odd")
+					red_player.save_parameters()
 				if train_black == "Y":
 					print("Training Black...")
 					black_player.train_model()

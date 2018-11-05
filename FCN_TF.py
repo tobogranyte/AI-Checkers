@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 import os
 import tensorflow as tf
 
-class FCN2:
+class FCN_TF:
 
 	def __init__(self):
 		tf.reset_default_graph()
+		self.sess = tf.Session()
 		self.layers_dims = [537, 2048, 1024, 524, 262, 131, 48] #  6-layer model
-		params, available = self.check_for_params()
+		available = self.check_for_params()
 		checkpoint = False
 		name = ''
 		self.cuda = ''
@@ -32,17 +33,18 @@ class FCN2:
 
 		if available:
 			if input("Start from saved?") == "Y":
-				self.parameters = params
+				# Restore variables from disk.
+				saver.restore(self.sess, "FCN_TF/model_temp.ckpt")
+				print("Session restored!")
 				if input("Make checkpoint from saved?") == "Y":
 					name = input("Checkpoint name:")
-					self.save_obj(self.parameters, name)
+					self.save_obj(name)
 			else:
 				if input("Start from checkpoint?") == "Y":
 					while checkpoint == False and name != 's':
 						name = input("Checkpoint name [s = skip]:")
 						if name != "s":
-							checkpoint = self.load_checkpoint(name)
-							self.parameters = checkpoint
+							self.load_checkpoint(name)
 						else:
 							print("Initializing parameters...")
 							self.parameters = self.initialize_parameters_deep(self.layers_dims)
@@ -67,13 +69,31 @@ class FCN2:
 		self.legal_means = []
 		self.illegal_means = []
 		self.trainings = 0
+		self.X_m, self.Y_m = self.create_placeholders(537, 48)
+		self.AL_m, self.caches_m = self.L_model_forward(self.X_m, self.parameters)
+		self.init = tf.global_variables_initializer()
+		self.saver = tf.train.Saver()
+		self.sess.run(self.init)
+
+	def rs(self):
+		inc_p = self.parameters["W1"].assign(self.parameters["W1"] + 1)
+		self.sess.run(self.init)
+		# Do some work with the model.
+		print(self.sess.run(self.parameters["W1"]))
+		self.sess.run(inc_p)
+		print(self.sess.run(self.parameters["W1"]))
+		self.save_obj('test')
+		self.sess.run(self.init)
+		print(self.sess.run(self.parameters["W1"]))
+		self.saver.restore(self.sess, "FCN_TF/test.ckpt")
+		print(self.sess.run(self.parameters["W1"]))
 
 	def plot_activations(self):
 		plt.figure(2)
 		plt.ion()
 		plt.show()
 		g_norm = np.random.normal(scale = 1, size = self.layers_dims[0]).reshape(self.layers_dims[0],1)
-		self.AL, caches = self.L_model_forward(g_norm, self.parameters)
+		caches = self.sess.run(self.caches, feed_dict = {self.X}).L_model_forward(g_norm, self.parameters)
 		Y = np.zeros((48,1))
 		L = len(caches)
 		for l in reversed(range(L)):
@@ -114,61 +134,85 @@ class FCN2:
 		self.num_attempts = 0 # total number of attempts to get to a legal move
 		self.num_attempts_batch = []
 
-	def save_parameters(self, type):
-		self.save_obj(self.parameters, 'parameters_temp_' + type)
+	def save_parameters(self):
+		self.save_obj(self.parameters, 'model_temp')
 
-	def save_obj(self, obj, name ):
-		with open('FCN2/'+ name + '.pkl', 'wb') as f:
-			pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-		print("File " + name + ".pkl saved!")
-
-	def load_obj(self, name):
-		with open('FCN2/' + name + '.pkl', 'rb') as f:
-			return pickle.load(f)
+	def save_obj(self, name):
+		save_path = self.saver.save(self.sess, 'FCN_TF/'+ name + '.ckpt')
+		print("Model saved in path: %s" % save_path)
 
 	def load_checkpoint(self, name):
 		try:
-			checkpoint = pickle.load(open("FCN2/" + name + ".pkl", "rb"))
+			checkpoint = pickle.load(open("FCN_TF/" + name + ".pkl", "rb"))
+			self.saver.restore(self.sess, "FCN_TF/" + name + ".ckpt")
 		except (OSError, IOError) as e:
 			checkpoint = False
 			print("Can't find that checkpoint...")
 		if checkpoint != False:
-			print("Checkpoint " + name + ".pkl loaded!")
+			print("Checkpoint " + name + ".ckpt loaded!")
 		return checkpoint
 
 	def check_for_params(self):
-		try:
-			params = pickle.load(open("FCN1/parameters_temp.pkl", "rb"))
-			available = True
-		except (OSError, IOError) as e:
-			params = 0
-			available = False
+		available = os.path.isfile("FCN_TF/model_temp.ckpt")
 
-		return params, available
+		return available
+
+	def initialize_network_architecture_deep(self, layer_dims):
+		layers_dims = tf.constant(layer_dims, name='layers_dims')
+		print(layers_dims)
+
+		return layers_dims
+
 
 	def initialize_parameters_deep(self, layer_dims):
-	    """
-	    Arguments:
-	    layer_dims -- python array (list) containing the dimensions of each layer in our network
-	    
-	    Returns:
-	    parameters -- python dictionary containing your parameters "W1", "b1", ..., "WL", "bL":
-	                    Wl -- weight matrix of shape (layer_dims[l], layer_dims[l-1])
-	                    bl -- bias vector of shape (layer_dims[l], 1)
-	    """
-	    
-	    parameters = {}
-	    L = len(layer_dims)            # number of layers in the network
+		"""
+		Arguments:
+		layer_dims -- python array (list) containing the dimensions of each layer in the network
 
-	    for l in range(1, L):
-	        parameters['W' + str(l)] = np.random.randn(layer_dims[l], layer_dims[l-1]) / np.sqrt(layer_dims[l-1]/2)
-	        parameters['b' + str(l)] = np.zeros((layer_dims[l], 1)) 
-	        
-	        assert(parameters['W' + str(l)].shape == (layer_dims[l], layer_dims[l-1]))
-	        assert(parameters['b' + str(l)].shape == (layer_dims[l], 1))
+		Returns:
+		parameters -- python dictionary containing your parameters "W1", "b1", ..., "WL", "bL":
+		                Wl -- weight matrix of shape (layer_dims[l], layer_dims[l-1])
+		                bl -- bias vector of shape (layer_dims[l], 1)
+		"""
+
+		parameters = {}
+		L = len(layer_dims)          # number of layers in the network
+
+		for l in range(1, L):
+			#parameters['W' + str(l)] = np.random.randn(layer_dims[l], layer_dims[l-1]) / np.sqrt(layer_dims[l-1]/2)
+			parameters['W' + str(l)] = tf.get_variable('W' + str(l), [layer_dims[l], layer_dims[l-1]], initializer=tf.contrib.layers.xavier_initializer())
+			#parameters['b' + str(l)] = np.zeros((layer_dims[l], 1)) 
+			parameters['b' + str(l)] = tf.get_variable('b' + str(l), [layer_dims[l], 1], initializer=tf.zeros_initializer())
+
+			#assert(parameters['W' + str(l)].shape == (layer_dims[l], layer_dims[l-1]))
+			#assert(parameters['b' + str(l)].shape == (layer_dims[l], 1))
 
 	        
-	    return parameters
+		return parameters
+
+	def create_placeholders(self, n_x, n_y):
+		"""
+		Creates the placeholders for the tensorflow session.
+
+		Arguments:
+		n_x -- scalar, size of feature vector for the board/player
+		n_y -- scalar, number of classes (12 pieces * maximum of 4 possible moves per piece = 48)
+
+		Returns:
+		X -- placeholder for the data input, of shape [n_x, None] and dtype "float"
+		Y -- placeholder for the input labels, of shape [n_y, None] and dtype "float"
+
+		Tips:
+		- You will use None because it let's us be flexible on the number of examples you will for the placeholders.
+		  In fact, the number of examples during test/train is different.
+		"""
+
+		### START CODE HERE ### (approx. 2 lines)
+		X = tf.placeholder(tf.float32, shape=[n_x, None], name='X')
+		Y = tf.placeholder(tf.float32, shape=[n_y, None], name='Y')
+		### END CODE HERE ###
+
+		return X, Y
 
 	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
 		self.num_attempts += 1
@@ -179,7 +223,8 @@ class FCN2:
 			self.illegal_mask[self.board_legal_moves != 0] = 1 # ones for anything that's legal
 			self.illegal_mask = self.illegal_mask.reshape(self.illegal_mask.size, -1) # make into a column vector
 			self.X = self.get_input_vector(board, self.board_legal_moves, color, jump_piece_number = jump_piece_number) # create the input vector
-			self.AL, caches = self.L_model_forward(self.X, self.parameters) # run forward prop
+			#self.AL, caches = self.L_model_forward(self.X, self.parameters) # run forward prop
+			[self.AL, self.caches] = self.sess.run([self.AL_m, self.caches_m], feed_dict = {self.X_m: self.X})
 			self.AL_forsort = np.append(self.AL, np.arange(self.AL.shape[0], dtype = 'int').reshape(self.AL.shape[0], 1), axis = 1)
 		if self.move_type == "R":
 			move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()/np.sum(self.AL.flatten()))) # roll the dice and pick a move from the output probs
@@ -308,44 +353,53 @@ class FCN2:
 		return v.reshape(v.size, -1)
 
 	def L_model_forward(self, X, parameters):
-	    """
-	    Implement forward propagation for the [LINEAR->RELU]*(L-1)->LINEAR->SIGMOID computation
-	    
-	    Arguments:
-	    X -- data, numpy array of shape (input size, number of examples)
-	    parameters -- output of initialize_parameters_deep()
-	    
-	    Returns:
-	    AL -- last post-activation value
-	    caches -- list of caches containing:
-	                every cache of linear_relu_forward() (there are L-1 of them, indexed from 0 to L-2)
-	                the cache of linear_sigmoid_forward() (there is one, indexed L-1)
-	    """
+		"""
+		Implement forward propagation for the [LINEAR->RELU]*(L-1)->LINEAR->SSOFTMAX computation
 
-	    caches = []
-	    A = X
-	    L = len(parameters) // 2                  # number of layers in the neural network
-	    # Implement [LINEAR -> RELU]*(L-1). Add "cache" to the "caches" list.
-	    for l in range(1, L):
-	        A_prev = A 
-	        A, cache = self.linear_activation_forward(A_prev, 
-	                                             parameters["W" + str(l)], 
-	                                             parameters["b" + str(l)], 
-	                                             activation='relu')
-	        caches.append(cache)
+		Arguments:
+		X -- data, tensor with shape (input size, number of examples)
+		parameters -- output of initialize_parameters_deep()
 
-	    
-	    # Implement LINEAR -> SIGMOID. Add "cache" to the "caches" list.
-	    AL, cache = self.linear_activation_forward(A, 
-                                            	 parameters["W" + str(L)], 
-	                                             parameters["b" + str(L)], 
-	                                             activation='softmax')
-	    caches.append(cache)
+		Returns:
+		AL -- last post-activation value
+		caches -- list of caches containing:
+		            every cache of linear_relu_forward() (there are L-1 of them, indexed from 0 to L-2)
+		            the cache of linear_sigmoid_forward() (there is one, indexed L-1)
+		"""
+
+		caches = []
+		A = X
+		L = len(parameters) // 2                  # number of layers in the neural network
+		# Implement [LINEAR -> RELU]*(L-1). Add "cache" to the "caches" list.
+		for l in range(1, L):
+			A_prev = A 
+			# A, cache = self.linear_activation_forward(A_prev, 
+			#                                     parameters["W" + str(l)], 
+			#                                     parameters["b" + str(l)], 
+			#                                     activation='relu')
+			linear_cache = (A_prev, parameters["W" + str(l)], parameters["b" + str(l)])
+			Z = tf.add(tf.matmul(parameters["W" + str(l)], A_prev), parameters["b" + str(l)])
+			activation_cache = Z
+			A = tf.nn.relu(Z)
+			cache = (linear_cache, activation_cache)
+			caches.append(cache)
 
 
-	    assert(AL.shape == (self.layers_dims[L],X.shape[1]))
-	            
-	    return AL, caches
+		# Implement LINEAR -> SIGMOID. Add "cache" to the "caches" list.
+		#AL, cache = self.linear_activation_forward(A, 
+		#                                    	 parameters["W" + str(L)], 
+		#                                         parameters["b" + str(L)], 
+		#                                         activation='softmax')
+		linear_cache = (A, parameters["W" + str(L)], parameters["b" + str(L)])
+		Z = tf.add(tf.matmul(parameters["W" + str(L)], A), parameters["b" + str(L)])
+		activation_cache = Z
+		AL = tf.nn.softmax(Z)
+		cache = (linear_cache, activation_cache)
+		caches.append(cache)
+
+
+		        
+		return AL, caches
 
 	def linear_forward(self, A, W, b):
 		"""
