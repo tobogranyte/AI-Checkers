@@ -75,7 +75,8 @@ class FCN2:
 		Y = np.zeros((48,1))
 		L = len(caches)
 		for l in reversed(range(L)):
-			sp = 100 + (10 * (L - 1)) + (l + 1)
+			sp = 100 + (10 * (L)) + (l + 1)
+			print(sp)
 			plt.subplot(sp)
 			linear_cache, activation_cache = caches[l]
 			plt.hist(activation_cache)
@@ -112,8 +113,8 @@ class FCN2:
 		self.num_attempts = 0 # total number of attempts to get to a legal move
 		self.num_attempts_batch = []
 
-	def save_parameters(self, type):
-		self.save_obj(self.parameters, 'parameters_temp_' + type)
+	def save_parameters(self):
+		self.save_obj(self.parameters, 'parameters_temp')
 
 	def save_obj(self, obj, name ):
 		with open('FCN2/'+ name + '.pkl', 'wb') as f:

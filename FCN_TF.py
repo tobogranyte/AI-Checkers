@@ -11,6 +11,7 @@ class FCN_TF:
 		tf.reset_default_graph()
 		self.sess = tf.Session()
 		self.layers_dims = [537, 2048, 1024, 524, 262, 131, 48] #  6-layer model
+		self.learning_rate = 0.015
 		available = self.check_for_params()
 		checkpoint = False
 		name = ''
@@ -69,8 +70,10 @@ class FCN_TF:
 		self.legal_means = []
 		self.illegal_means = []
 		self.trainings = 0
-		self.X_m, self.Y_m = self.create_placeholders(537, 48)
+		self.X_m, self.Y_m, self.weights = self.create_placeholders(537, 48, 1)
 		self.AL_m, self.caches_m = self.L_model_forward(self.X_m, self.parameters)
+		self.cost = self.compute_cost_mean_square_error(self.AL_m, self.Y_m, self.weights)
+		self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
 		self.init = tf.global_variables_initializer()
 		self.saver = tf.train.Saver()
 		self.sess.run(self.init)
@@ -93,11 +96,12 @@ class FCN_TF:
 		plt.ion()
 		plt.show()
 		g_norm = np.random.normal(scale = 1, size = self.layers_dims[0]).reshape(self.layers_dims[0],1)
-		caches = self.sess.run(self.caches, feed_dict = {self.X}).L_model_forward(g_norm, self.parameters)
+		print(g_norm.shape)
+		caches = self.sess.run(self.caches_m, feed_dict = {self.X_m: g_norm})
 		Y = np.zeros((48,1))
 		L = len(caches)
 		for l in reversed(range(L)):
-			sp = 100 + (10 * (L - 1)) + (l + 1)
+			sp = 100 + (10 * (L)) + (l + 1)
 			plt.subplot(sp)
 			linear_cache, activation_cache = caches[l]
 			plt.hist(activation_cache)
@@ -135,7 +139,7 @@ class FCN_TF:
 		self.num_attempts_batch = []
 
 	def save_parameters(self):
-		self.save_obj(self.parameters, 'model_temp')
+		self.save_obj('model_temp')
 
 	def save_obj(self, name):
 		save_path = self.saver.save(self.sess, 'FCN_TF/'+ name + '.ckpt')
@@ -190,7 +194,7 @@ class FCN_TF:
 	        
 		return parameters
 
-	def create_placeholders(self, n_x, n_y):
+	def create_placeholders(self, n_x, n_y, n_w):
 		"""
 		Creates the placeholders for the tensorflow session.
 
@@ -210,9 +214,10 @@ class FCN_TF:
 		### START CODE HERE ### (approx. 2 lines)
 		X = tf.placeholder(tf.float32, shape=[n_x, None], name='X')
 		Y = tf.placeholder(tf.float32, shape=[n_y, None], name='Y')
+		weights = tf.placeholder(tf.int32, shape=[n_w, None], name='weights')
 		### END CODE HERE ###
 
-		return X, Y
+		return X, Y, weights
 
 	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
 		self.num_attempts += 1
@@ -270,25 +275,32 @@ class FCN_TF:
 
 	def train(self):
 		params = {}
-		learning_rate = 0.015
 
 		Y = self.make_Y(np.hstack(self.probabilities), np.hstack(self.illegal_masks)) # use if only training on legal moves, not all moves
 #		Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
+		X_batch = np.hstack(self.X_batch)
+		print(X_batch.shape)
 
 		weights = np.hstack(self.num_attempts_batch)
+		weights = weights.reshape(1, weights.size)
+
+		print(weights.shape)
 
 		for i in range(0, 10):
 
-			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters) # use if only training on legal moves, not all moves
+			AL, caches, cost = self.sess.run([self.AL_m, self.caches_m, self.cost], feed_dict = {self.X_m: X_batch, self.Y_m: Y, self.weights: weights})
+#			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters) # use if only training on legal moves, not all moves
 #			AL, caches = self.L_model_forward(np.hstack(self.attempts_X_batch), self.parameters) # use if training on all illegal attempts
 
 			if i == 0:
-				pre_cost = self.compute_cost_mean_square_error(AL, Y, weights)
+				pre_cost = cost
+				#pre_cost = self.compute_cost_mean_square_error(AL, Y, weights)
 				#pre_cost = self.compute_cost_cross_entropy(AL, Y)
 
-			grads = self.L_model_backward(AL, Y, caches, weights)
+			_ , cost = self.sess.run([self.optimizer, self.cost], feed_dict={self.X_m: X_batch, self.Y_m: Y, self.weights: weights})
+			#grads = self.L_model_backward(AL, Y, caches, weights)
 
-			self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
+			#self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
 
 		L = len(caches)
 		mins = []
@@ -299,7 +311,7 @@ class FCN_TF:
 			mins.append(np.amin(activation_cache))
 			maxes.append(np.amax(activation_cache))
 
-		cost = self.compute_cost_mean_square_error(AL, Y, weights)
+		#cost = self.compute_cost_mean_square_error(AL, Y, weights)
 		#cost = self.compute_cost_cross_entropy(AL, Y)
 		self.trainings += 1
 		self.plot_activations()
@@ -372,6 +384,7 @@ class FCN_TF:
 		L = len(parameters) // 2                  # number of layers in the neural network
 		# Implement [LINEAR -> RELU]*(L-1). Add "cache" to the "caches" list.
 		for l in range(1, L):
+			print(l)
 			A_prev = A 
 			# A, cache = self.linear_activation_forward(A_prev, 
 			#                                     parameters["W" + str(l)], 
@@ -393,71 +406,11 @@ class FCN_TF:
 		linear_cache = (A, parameters["W" + str(L)], parameters["b" + str(L)])
 		Z = tf.add(tf.matmul(parameters["W" + str(L)], A), parameters["b" + str(L)])
 		activation_cache = Z
-		AL = tf.nn.softmax(Z)
+		AL = tf.nn.softmax(Z, 0)
 		cache = (linear_cache, activation_cache)
 		caches.append(cache)
-
-
 		        
 		return AL, caches
-
-	def linear_forward(self, A, W, b):
-		"""
-		Implement the linear part of a layer's forward propagation.
-
-		Arguments:
-		A -- activations from previous layer (or input data): (size of previous layer, number of examples)
-		W -- weights matrix: numpy array of shape (size of current layer, size of previous layer)
-		b -- bias vector, numpy array of shape (size of the current layer, 1)
-
-		Returns:
-		Z -- the input of the activation function, also called pre-activation parameter 
-		cache -- a python dictionary containing "A", "W" and "b" ; stored for computing the backward pass efficiently
-		"""
-
-		Z = np.dot(W, A) + b
-		
-
-		assert(Z.shape == (W.shape[0], A.shape[1]))
-		cache = (A, W, b)
-
-		return Z, cache
-
-	def linear_activation_forward(self, A_prev, W, b, activation):
-	    """
-	    Implement the forward propagation for the LINEAR->ACTIVATION layer
-
-	    Arguments:
-	    A_prev -- activations from previous layer (or input data): (size of previous layer, number of examples)
-	    W -- weights matrix: numpy array of shape (size of current layer, size of previous layer)
-	    b -- bias vector, numpy array of shape (size of the current layer, 1)
-	    activation -- the activation to be used in this layer, stored as a text string: "sigmoid" or "relu"
-
-	    Returns:
-	    A -- the output of the activation function, also called the post-activation value 
-	    cache -- a python dictionary containing "linear_cache" and "activation_cache";
-	             stored for computing the backward pass efficiently
-	    """
-	    
-	    if activation == "sigmoid":
-	        # Inputs: "A_prev, W, b". Outputs: "A, activation_cache".
-	        Z, linear_cache = self.linear_forward(A_prev, W, b)
-	        A, activation_cache = sigmoid(Z)
-	    
-	    elif activation == "relu":
-	        # Inputs: "A_prev, W, b". Outputs: "A, activation_cache".
-	        Z, linear_cache = self.linear_forward(A_prev, W, b)
-	        A, activation_cache = relu(Z)
-	    
-	    elif activation == "softmax":
-	        # Inputs: "A_prev, W, b". Outputs: "A, activation_cache".
-	        Z, linear_cache = self.linear_forward(A_prev, W, b)
-	        A, activation_cache = softmax(Z)
-	    
-	    assert (A.shape == (W.shape[0], A_prev.shape[1]))
-	    cache = (linear_cache, activation_cache)
-
-	    return A, cache
 
 
 	def compute_cost_cross_entropy(self, AL, Y):
@@ -493,13 +446,11 @@ class FCN_TF:
 		Returns:
 		cost -- cross-entropy cost
 		"""
-		m = Y.shape[1]
-
+		w = tf.cast(weights, tf.float32)
 		# Compute loss from aL and y.
-		cost = (1./ m) * np.sum(weights * np.square(Y - AL))
-
-		cost = np.squeeze(cost)      # To make sure your cost's shape is what we expect (e.g. this turns [[17]] into 17).
-		assert(cost.shape == ())
+		#cost = tf.losses.mean_squared_error(Y, AL, weights=weights, reduction=Reduction.MEAN)
+		cost = tf.reduce_mean(tf.reduce_sum(tf.multiply(w, tf.square(tf.subtract(Y, AL))), axis = 0))
+		#cost = (1./ m) * np.sum(weights * np.square(Y - AL))
 
 		return cost
 
