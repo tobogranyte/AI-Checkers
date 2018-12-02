@@ -9,11 +9,22 @@ class FCN_TF:
 
 	def __init__(self):
 		tf.reset_default_graph()
+		self.batch_num = 0
 		self.sess = tf.Session()
 		self.layers_dims = [537, 2048, 1024, 524, 262, 131, 48] #  6-layer model
-		self.learning_rate = 0.015
-		available = self.check_for_params()
+		self.learning_rate = 0.03
 		checkpoint = False
+		print("Initializing parameters...")
+		self.parameters = self.initialize_parameters_deep(self.layers_dims)
+		print("Parameters initialized!")
+		self.X_m, self.Y_m, self.weights = self.create_placeholders(537, 48, 1)
+		self.AL_m, self.caches_m = self.L_model_forward(self.X_m, self.parameters)
+		self.cost = self.compute_cost_mean_square_error(self.AL_m, self.Y_m, self.weights)
+		self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
+		self.init = tf.global_variables_initializer()
+		self.saver = tf.train.Saver()
+		available = self.check_for_params()
+		self.sess.run(self.init)
 		name = ''
 		self.cuda = ''
 
@@ -35,7 +46,7 @@ class FCN_TF:
 		if available:
 			if input("Start from saved?") == "Y":
 				# Restore variables from disk.
-				saver.restore(self.sess, "FCN_TF/model_temp.ckpt")
+				self.saver.restore(self.sess, "FCN_TF/model_temp.ckpt")
 				print("Session restored!")
 				if input("Make checkpoint from saved?") == "Y":
 					name = input("Checkpoint name:")
@@ -47,17 +58,11 @@ class FCN_TF:
 						if name != "s":
 							self.load_checkpoint(name)
 						else:
-							print("Initializing parameters...")
-							self.parameters = self.initialize_parameters_deep(self.layers_dims)
-							print("Parameters initialized!")
+							print("Using initialized parameters.")
 				else:
-					print("Initializing parameters...")
-					self.parameters = self.initialize_parameters_deep(self.layers_dims)
-					print("Parameters initialized!")
+					print("Using initialized parameters.")
 		else:
-			print("Initializing parameters...")
-			self.parameters = self.initialize_parameters_deep(self.layers_dims)
-			print("Parameters initialized!")
+			print("Using initialized parameters.")
 		if input("Dice roll or maximize?") == "M":
 			self.move_type = "M"
 		else:
@@ -70,13 +75,8 @@ class FCN_TF:
 		self.legal_means = []
 		self.illegal_means = []
 		self.trainings = 0
-		self.X_m, self.Y_m, self.weights = self.create_placeholders(537, 48, 1)
-		self.AL_m, self.caches_m = self.L_model_forward(self.X_m, self.parameters)
-		self.cost = self.compute_cost_mean_square_error(self.AL_m, self.Y_m, self.weights)
-		self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
-		self.init = tf.global_variables_initializer()
-		self.saver = tf.train.Saver()
-		self.sess.run(self.init)
+		#with tf.device('/cpu:0'):
+		print(self.sess.run(self.parameters))
 
 	def rs(self):
 		inc_p = self.parameters["W1"].assign(self.parameters["W1"] + 1)
@@ -142,7 +142,7 @@ class FCN_TF:
 		self.save_obj('model_temp')
 
 	def save_obj(self, name):
-		save_path = self.saver.save(self.sess, 'FCN_TF/'+ name + '.ckpt')
+		save_path = self.saver.save(self.sess, 'FCN_TF/'+ name + '.ckpt', )
 		print("Model saved in path: %s" % save_path)
 
 	def load_checkpoint(self, name):
@@ -157,7 +157,7 @@ class FCN_TF:
 		return checkpoint
 
 	def check_for_params(self):
-		available = os.path.isfile("FCN_TF/model_temp.ckpt")
+		available = os.path.isfile("FCN_TF/model_temp.ckpt.data-00000-of-00001")
 
 		return available
 
@@ -275,8 +275,10 @@ class FCN_TF:
 
 	def train(self):
 		params = {}
+		self.batch_num += 1
+		masks = np.hstack(self.illegal_masks)
 
-		Y = self.make_Y(np.hstack(self.probabilities), np.hstack(self.illegal_masks)) # use if only training on legal moves, not all moves
+		Y = self.make_Y(np.hstack(self.probabilities), masks) # use if only training on legal moves, not all moves
 #		Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
 		X_batch = np.hstack(self.X_batch)
 		print(X_batch.shape)
@@ -293,6 +295,13 @@ class FCN_TF:
 #			AL, caches = self.L_model_forward(np.hstack(self.attempts_X_batch), self.parameters) # use if training on all illegal attempts
 
 			if i == 0:
+				r = np.random.randint(0,AL.shape[1])
+				R_AL = AL[:, r]
+				R_masks = masks[:, r]
+				R = [R_AL, R_masks]
+				with open('FCN_TF/random/random_move_'+ str(self.batch_num) + '.pkl', 'wb') as f:
+					pickle.dump(R, f, pickle.HIGHEST_PROTOCOL)
+
 				pre_cost = cost
 				#pre_cost = self.compute_cost_mean_square_error(AL, Y, weights)
 				#pre_cost = self.compute_cost_cross_entropy(AL, Y)
@@ -378,7 +387,7 @@ class FCN_TF:
 		            every cache of linear_relu_forward() (there are L-1 of them, indexed from 0 to L-2)
 		            the cache of linear_sigmoid_forward() (there is one, indexed L-1)
 		"""
-
+		#with tf.device('/cpu:0'):
 		caches = []
 		A = X
 		L = len(parameters) // 2                  # number of layers in the neural network
