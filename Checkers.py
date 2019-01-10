@@ -71,8 +71,8 @@ else:
 	exec(black_import_string, globals())
 	red_model = rm()
 	black_model = bm()
-	red_player = Player(model = red_model, color = "Red")
-	black_player = Player(model = black_model, color = "Black")
+	red_player = Player(model = red_model, color = "Red") # create the red player assigning model and color
+	black_player = Player(model = black_model, color = "Black") # create the black player assigning model and color
 
 if input("Play game [Y/n]:") == "Y":
 

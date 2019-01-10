@@ -28,9 +28,9 @@ class Player:
 	def make_move(self, board, jump_piece_number = None, jump_rule = True):
 		model_move = np.zeros((48), dtype = 'int')
 		move = np.zeros((4), dtype = 'int')
-		piece_number = -1
+		piece_number = -1 # this will remain -1 until it's determined there are legal moves
 		model_move, board_legal_moves = self.model.move(board, color = self.color, jump_piece_number = jump_piece_number, jump_rule = jump_rule) # retrieve one hot move and legal moves array
-		if np.count_nonzero(board_legal_moves) != 0:
+		if np.count_nonzero(board_legal_moves) != 0: # if there are any legal moves at all
 			piece_number = int(np.argmax(model_move)/4)
 			move = model_move[(4 * piece_number):((4 * piece_number) + 4)]
 			while np.count_nonzero(model_move * board_legal_moves) == 0: # check if the cuurent proposed move is illegal

@@ -9,17 +9,24 @@ from Board import Board
 class Game:
 
 	def __init__(self, red_player, black_player, jump_rule):
-		self.board = Board() # create a new board for the game
+		self.board = Board() # create a new board for the game. Internal representation of the board state.
 		self.board.setup() # set up the board with pieces in starting formation
 		self.red_player = red_player # assign the red player
 		self.black_player = black_player # assign the black player
 		self.jump_rule = jump_rule # are available jumps mandatory to make?
 
 	def play_game(self):
+		"""
+		Play a single game of checkers. Return the following parameters:
+		win -- True if game was won, False if stalemate
+		side -- color of player that won the game
+		self.board.piece_count("Red") -- number of pieces left on the red side
+		self.board.piece_count("Black") -- number of pieces left on the black side
+		self.red_player.move_count -- number of red
+		"""
 		#game_history = open('game_history.txt','w')
 		stalemate = False
 		win = False
-		hold = False
 		jump_piece_number = None
 		no_jump_count = 0 # to track a simplified stalemate rule
 		if np.random.uniform(0, 1) >= .5:
@@ -27,9 +34,9 @@ class Game:
 		else:
 			player = self.black_player
 		while not stalemate and not win:
-			board_move = np.zeros((48), dtype = 'int')
+			board_move = np.zeros((48), dtype = 'int') # create output vector placeholder with zeros
 			move, piece_number  = player.make_move(self.board, jump_piece_number = jump_piece_number, jump_rule = self.jump_rule) # get a move from the player
-			board_legal_moves = self.board.legal_moves(color = player.color, jump_piece_number = jump_piece_number, jump_rule = self.jump_rule)
+			board_legal_moves = self.board.legal_moves(color = player.color, jump_piece_number = jump_piece_number, jump_rule = self.jump_rule) # get
 			if np.max(move) != 0:
 				board_move[(piece_number * 4):((piece_number * 4) + 4)] = move
 				move_array = board_legal_moves * board_move

@@ -223,8 +223,8 @@ class FCN_TF:
 		self.num_attempts += 1
 		if illegal == False: # everything within this sets up the stuff that won't change until a legal move is executed
 			#print('legal')
-			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule) # get legal moves for current board position
-			self.illegal_mask = np.zeros((48)) # create a holder for the illegal mask (starting filled with zeros)
+			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule) # get legal moves (48,) for current board position (0: illegal, 1:legal, 2:jump-legal)
+			self.illegal_mask = np.zeros((48)) # create a holder (48,) for the illegal mask (starting filled with zeros)
 			self.illegal_mask[self.board_legal_moves != 0] = 1 # ones for anything that's legal
 			self.illegal_mask = self.illegal_mask.reshape(self.illegal_mask.size, -1) # make into a column vector
 			self.X = self.get_input_vector(board, self.board_legal_moves, color, jump_piece_number = jump_piece_number) # create the input vector
@@ -358,7 +358,7 @@ class FCN_TF:
 
 	def get_input_vector(self, board, board_legal_moves, color, jump_piece_number):
 		if color == 'Red':
-			v = board.red_home_view().flatten()
+			v = board.red_home_view().flatten() # get the board state 
 		else:
 			v = board.black_home_view().flatten()
 		v = np.append(v, board.get_piece_vector(color))
