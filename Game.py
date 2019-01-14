@@ -15,7 +15,7 @@ class Game:
 		self.black_player = black_player # assign the black player
 		self.jump_rule = jump_rule # are available jumps mandatory to make?
 
-	def play_game(self):
+	def start_game(self):
 		"""
 		Play a single game of checkers. Return the following parameters:
 		win -- True if game was won, False if stalemate
@@ -25,56 +25,57 @@ class Game:
 		self.red_player.move_count -- number of red
 		"""
 		#game_history = open('game_history.txt','w')
-		stalemate = False
-		win = False
-		jump_piece_number = None
-		no_jump_count = 0 # to track a simplified stalemate rule
+		self.stalemate = False
+		self.win = False
+		self.jump_piece_number = None
 		if np.random.uniform(0, 1) >= .5:
-			player = self.red_player
+			self.player = self.red_player
 		else:
-			player = self.black_player
-		while not stalemate and not win:
-			board_move = np.zeros((48), dtype = 'int') # create output vector placeholder with zeros
-			move, piece_number  = player.make_move(self.board, jump_piece_number = jump_piece_number, jump_rule = self.jump_rule) # get a move from the player
-			board_legal_moves = self.board.legal_moves(color = player.color, jump_piece_number = jump_piece_number, jump_rule = self.jump_rule) # get
-			if np.max(move) != 0:
+			self.player = self.black_player
+
+
+	def make_move(self):
+		board_move = np.zeros((48), dtype = 'int') # create output vector placeholder with zeros
+		move, piece_number  = self.player.make_move(self.board, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get a move from the player
+		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get
+		if np.max(move) != 0:
+			board_move[(piece_number * 4):((piece_number * 4) + 4)] = move
+			move_array = board_legal_moves * board_move
+			while np.count_nonzero(move_array) == 0:
+				print("Player proposed illegal move!!")
+				board_move = np.zeros((48), dtype = 'int')
+				move, piece_number  = self.player.make_move(self.board, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule)
 				board_move[(piece_number * 4):((piece_number * 4) + 4)] = move
 				move_array = board_legal_moves * board_move
-				while np.count_nonzero(move_array) == 0:
-					print("Player proposed illegal move!!")
-					board_move = np.zeros((48), dtype = 'int')
-					move, piece_number  = player.make_move(self.board, jump_piece_number = jump_piece_number, jump_rule = self.jump_rule)
-					board_move[(piece_number * 4):((piece_number * 4) + 4)] = move
-					move_array = board_legal_moves * board_move
-				self.board.move_piece(player.color, piece_number, np.argmax(move))
-				player.increment_move_count()
-				#game_history.write(self.board.visual_state())
-				if np.max(move_array) == 2:
-					count = self.board.piece_count(color = player.other_color)
-					if count == 0:
-						win = True
-						side = player.color
-					else:
-						if np.max(self.board.legal_piece_moves(color = player.color, piece_number = piece_number).flatten()) == 2:
-							jump_piece_number = piece_number
-						else:
-							jump_piece_number = None
-							if player == self.red_player:
-								player = self.black_player
-							else:
-								player = self.red_player
+			self.board.move_piece(self.player.color, piece_number, np.argmax(move))
+			self.player.increment_move_count()
+			#game_history.write(self.board.visual_state())
+			if np.max(move_array) == 2:
+				count = self.board.piece_count(color = self.player.other_color)
+				if count == 0:
+					self.win = True
+					self.side = self.player.color
 				else:
-					jump_piece_number = None
-					if player == self.red_player:
-						player = self.black_player
+					if np.max(self.board.legal_piece_moves(color = self.player.color, piece_number = piece_number).flatten()) == 2:
+						self.jump_piece_number = piece_number
 					else:
-						player = self.red_player
+						self.jump_piece_number = None
+						if self.player == self.red_player:
+							self.player = self.black_player
+						else:
+							self.player = self.red_player
 			else:
-				win = True
-				side = player.other_color
+				self.jump_piece_number = None
+				if self.player == self.red_player:
+					self.player = self.black_player
+				else:
+					self.player = self.red_player
+		else:
+			self.win = True
+			self.side = self.player.other_color
 		#game_history.close()
 
-		return win, side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
+	return self.win, self.side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
 				
 					
 

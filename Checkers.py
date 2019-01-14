@@ -106,8 +106,11 @@ if input("Play game [Y/n]:") == "Y":
 
 
 	while True:
-		game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule)
-		games += 1
+		game_batch = []
+		for count in range(0,train_games)
+			game_batch.append(Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule))
+			game_batch[count].start_game()
+		games += train_games
 		win, side, red_piece_count, black_piece_count, red_move_count, black_move_count, red_illegal_count, black_illegal_count = game.play_game()
 		red_illegal_total += red_illegal_count
 		black_illegal_total += black_illegal_count
