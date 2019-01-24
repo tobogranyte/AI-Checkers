@@ -4,6 +4,7 @@ class RMM:
 	
 	def __init__(self):
 		print("New Random Moves Model")
+		self.layers_dims = [1] #  6-layer model
 
 	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
 		move = np.random.randint(48)
@@ -15,3 +16,7 @@ class RMM:
 
 	def complete_move(self):
 		pass
+
+	def get_input_vector(self, board, color, jump_piece_number):
+		v = np.array([0], dtype=int)
+		return v.reshape(v.size, -1)

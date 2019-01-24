@@ -26,8 +26,11 @@ class Player:
 			self.other_color = "Red"
 
 	def make_move(self, board, jump_piece_number = None, jump_rule = True):
-		model_move = np.zeros((48), dtype = 'int')
-		move = np.zeros((4), dtype = 'int')
+		"""
+		Generates a successful move which will get passed up to the game for this player
+		"""
+		model_move = np.zeros((48), dtype = 'int') # output placeholder for proposed move
+		move = np.zeros((4), dtype = 'int') # output placeholder for proposed move by piece
 		piece_number = -1 # this will remain -1 until it's determined there are legal moves
 		model_move, board_legal_moves = self.model.move(board, color = self.color, jump_piece_number = jump_piece_number, jump_rule = jump_rule) # retrieve one hot move and legal moves array
 		if np.count_nonzero(board_legal_moves) != 0: # if there are any legal moves at all

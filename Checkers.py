@@ -16,7 +16,7 @@ train_red = 'n'
 train_black = 'n'
 red_wins = 0
 black_wins = 0
-games = 0
+batch_count = 0
 red_illegal_total = 0
 red_move_total = 0
 black_illegal_total = 0
@@ -106,11 +106,37 @@ if input("Play game [Y/n]:") == "Y":
 
 
 	while True:
-		game_batch = []
-		for count in range(0,train_games)
-			game_batch.append(Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule))
-			game_batch[count].start_game()
-		games += train_games
+		red_game_batch = []
+		black_game_batch = []
+		for count in range(0,train_games): # create a batch-sized array of games and "start" each game
+			game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, game_number = count)
+			if game.start() == "Red": # game with a red move
+				red_game_batch.append(game) # append to list of games with red moves
+			else: #game with a black move
+				black_game_batch.append(game) #append to list of games with black moves
+		batch_count += 1 # this is the first batch
+		red_Y_batch = np.zeros((48, len(red_game_batch)))
+		black_Y_batch = np.zeros((48, len(black_game_batch)))
+		red_X_batch = np.zeros((red_model.layers_dims[0], len(red_game_batch))) # np array to hold X values for all games where it's a red move (column vector * number of red move games)
+		black_X_batch = np.zeros((black_model.layers_dims[0], len(black_game_batch))) # np array to hold X values for all games where it's a black move (column vector * number of black move games)
+		for n, game in enumerate(red_game_batch):
+			"""
+			Step through each game in the red training batch. For each game, get the input vector (X) from
+			the model and add it to the appropriate location in the red_X_batch.
+			Also for each game, get the Y (legal moves) and add it to the red_Y_batch.
+			"""
+			X, Y = game.generate_XY()
+			red_X_batch[n] = X
+			red_Y_batch[n] = Y
+		for n, game in enumerate(black_game_batch):
+			"""
+			Step through each game in the black training batch. For each game, get the input vector (X) from
+			the model and add it to the appropriate location in the black_X_batch.
+			Also for each game, get the Y (legal moves) and add it to the black_Y_batch.
+			"""
+			X, Y = game.generate_XY()
+			black_X_batch[n] = X
+			black_Y_batch[n] = Y
 		win, side, red_piece_count, black_piece_count, red_move_count, black_move_count, red_illegal_count, black_illegal_count = game.play_game()
 		red_illegal_total += red_illegal_count
 		black_illegal_total += black_illegal_count

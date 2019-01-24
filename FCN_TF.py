@@ -227,7 +227,7 @@ class FCN_TF:
 			self.illegal_mask = np.zeros((48)) # create a holder (48,) for the illegal mask (starting filled with zeros)
 			self.illegal_mask[self.board_legal_moves != 0] = 1 # ones for anything that's legal
 			self.illegal_mask = self.illegal_mask.reshape(self.illegal_mask.size, -1) # make into a column vector
-			self.X = self.get_input_vector(board, self.board_legal_moves, color, jump_piece_number = jump_piece_number) # create the input vector
+			self.X = self.get_input_vector(board, color, jump_piece_number = jump_piece_number) # create the input vector
 			#self.AL, caches = self.L_model_forward(self.X, self.parameters) # run forward prop
 			[self.AL, self.caches] = self.sess.run([self.AL_m, self.caches_m], feed_dict = {self.X_m: self.X})
 			self.AL_forsort = np.append(self.AL, np.arange(self.AL.shape[0], dtype = 'int').reshape(self.AL.shape[0], 1), axis = 1)
@@ -266,10 +266,12 @@ class FCN_TF:
 
 		return one_hot_move, self.board_legal_moves
 
+	def batch_move(self, X)
+
 	def complete_move(self):
-			self.moves[-1] = self.new_move
-			self.num_attempts_batch[-1] = self.num_attempts
-			self.num_attempts = 0
+		self.moves[-1] = self.new_move
+		self.num_attempts_batch[-1] = self.num_attempts
+		self.num_attempts = 0
 
 
 
@@ -348,15 +350,19 @@ class FCN_TF:
 
 
 	def make_Y(self, probs, masks):
-		Y = np.minimum(probs, masks)
-		Y[Y > 0] = 1
-		S = np.sum(Y, axis = 0)
+		Y = np.minimum(probs, masks) # 0 for everything that's 0 in the mask
+		Y[Y > 0] = 1 # 1 for everything that isn't
+		# looks like Y should end up being masks
+		S = np.sum(Y, axis = 0) # sum of total legal moves
 		S[S == 0] = 1
+		# This seems to be forcing a 1 for the sum when there are no legal moves.
+		# But in the fullness of time I'm not sure why a situation with no legal moves would
+		# ever make it into the training set.
 		Y = Y / (S)
 
 		return Y
 
-	def get_input_vector(self, board, board_legal_moves, color, jump_piece_number):
+	def get_input_vector(self, board, color, jump_piece_number):
 		if color == 'Red':
 			v = board.red_home_view().flatten() # get the board state 
 		else:
@@ -450,7 +456,7 @@ class FCN_TF:
 
 		Arguments:
 		AL -- probability vector corresponding to your label predictions, shape (1, number of examples)
-		Y -- true "label" vector (for example: containing 0 if non-cat, 1 if cat), shape (1, number of examples)
+		Y -- true "label" vector 
 
 		Returns:
 		cost -- cross-entropy cost

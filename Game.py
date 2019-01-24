@@ -8,14 +8,15 @@ from Board import Board
 
 class Game:
 
-	def __init__(self, red_player, black_player, jump_rule):
+	def __init__(self, red_player, black_player, jump_rule, game_number):
 		self.board = Board() # create a new board for the game. Internal representation of the board state.
 		self.board.setup() # set up the board with pieces in starting formation
 		self.red_player = red_player # assign the red player
 		self.black_player = black_player # assign the black player
 		self.jump_rule = jump_rule # are available jumps mandatory to make?
+		self.game_number = game_number
 
-	def start_game(self):
+	def start(self):
 		"""
 		Play a single game of checkers. Return the following parameters:
 		win -- True if game was won, False if stalemate
@@ -33,11 +34,16 @@ class Game:
 		else:
 			self.player = self.black_player
 
+		return.self.player.color
+
+
+	def player_color(self):
+		return self.player.color
 
 	def make_move(self):
 		board_move = np.zeros((48), dtype = 'int') # create output vector placeholder with zeros
 		move, piece_number  = self.player.make_move(self.board, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get a move from the player
-		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get
+		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves from the board
 		if np.max(move) != 0:
 			board_move[(piece_number * 4):((piece_number * 4) + 4)] = move
 			move_array = board_legal_moves * board_move
@@ -77,7 +83,15 @@ class Game:
 
 	return self.win, self.side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
 				
-					
+	def generate_XY(self):
+		X = self.player.model.get_input_vector(self.board, self.player.color, jump_piece_number = self.jump_piece_number)
+		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves (48,) for current board position (0: illegal, 1:legal, 2:jump-legal)
+		illegal_mask = np.zeros((48)) # create a holder (48,) for the illegal mask (starting filled with zeros)
+		illegal_mask[self.board_legal_moves != 0] = 1 # ones for anything that's legal
+		Y = self.illegal_mask.reshape(self.illegal_mask.size, -1) # make into a column vector
+
+		return X, Y
+
 
 	def static_playtest(self):
 		self.board.visual_state()
