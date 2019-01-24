@@ -348,9 +348,9 @@ class FCN_TF:
 
 
 	def make_Y(self, probs, masks):
-		Y = np.minimum(probs, masks)
-		Y[Y > 0] = 1
-		S = np.sum(Y, axis = 0)
+		S = np.sum(masks, axis = 0)
+		if np.amin(S) == 0:
+			print(S)
 		S[S == 0] = 1
 		Y = Y / (S)
 
