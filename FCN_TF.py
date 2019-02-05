@@ -117,24 +117,15 @@ class FCN_TF:
 		plt.hist(self.num_attempts_batch, bins=np.logspace(np.log10(1), np.log10(300), num=50))
 		plt.gca().set_xscale("log")
 
-
-	def check_gradients(self):
-		g_norm = np.random.normal(scale = 1, size = self.layers_dims[0]).reshape(self.layers_dims[0],1)
-		self.AL, caches = self.L_model_forward(g_norm, self.parameters)
-		Y = np.zeros((48,1))
-		grads = self.L_model_backward(self.AL, Y, caches)
-		difference = self.gradient_check_n(self.parameters, grads, g_norm, Y)
-		input("Paused...")
-
 	def initialize_training_batch(self):
 		self.moves = []
 		self.illegal_masks = []
-		self.probabilities = []
+		self.probabilities_batch = []
 		self.X_batch = []
 		self.attempts = [] # list with attempted (illegal) moves
-		self.attempts_illegal_masks = [] # parallel list with illegal masks for those attempts
-		self.attempts_probabilities = [] # parallel list with probability vectors for those attempts
-		self.attempts_X_batch = [] # parallel list with board inputs for those attempts
+		#self.attempts_illegal_masks = [] # parallel list with illegal masks for those attempts
+		#self.attempts_probabilities = [] # parallel list with probability vectors for those attempts
+		#self.attempts_X_batch = [] # parallel list with board inputs for those attempts
 		self.num_attempts = 0 # total number of attempts to get to a legal move
 		self.num_attempts_batch = []
 
@@ -257,7 +248,7 @@ class FCN_TF:
 
 		if illegal == False:
 			self.moves.append(self.new_move)
-			self.probabilities.append(self.AL)
+			self.probabilities_batch.append(self.AL)
 			self.X_batch.append(self.X)
 			self.illegal_masks.append(self.illegal_mask)
 			self.num_attempts_batch.append(self.num_attempts)
@@ -266,7 +257,15 @@ class FCN_TF:
 
 		return one_hot_move, self.board_legal_moves
 
-	def batch_move(self, X)
+	def parallel_predict(self, X, game_numbers):
+		[self.AL, self.caches] = self.sess.run([self.AL_m, self.caches_m], feed_dict = {self.X_m: self.X})
+		self.probabilities_batch.append(self.AL) # append the output probabilities for the parallel game moves to the probabilities batch
+		self.game_numbers.append(game_numbers)
+		self.X_batch.append(X)
+
+		return self.AL
+
+
 
 	def complete_move(self):
 		self.moves[-1] = self.new_move
@@ -280,7 +279,7 @@ class FCN_TF:
 		self.batch_num += 1
 		masks = np.hstack(self.illegal_masks)
 
-		Y = self.make_Y(np.hstack(self.probabilities), masks) # use if only training on legal moves, not all moves
+		Y = self.make_Y(np.hstack(self.probabilities_batch), masks) # use if only training on legal moves, not all moves
 #		Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
 		X_batch = np.hstack(self.X_batch)
 		print(X_batch.shape)
@@ -469,189 +468,3 @@ class FCN_TF:
 
 		return cost
 
-	def linear_backward(self, dZ, cache):
-		"""
-		Implement the linear portion of backward propagation for a single layer (layer l)
-
-		Arguments:
-		dZ -- Gradient of the cost with respect to the linear output (of current layer l)
-		cache -- tuple of values (A_prev, W, b) coming from the forward propagation in the current layer
-
-		Returns:
-		dA_prev -- Gradient of the cost with respect to the activation (of the previous layer l-1), same shape as A_prev
-		dW -- Gradient of the cost with respect to W (current layer l), same shape as W
-		db -- Gradient of the cost with respect to b (current layer l), same shape as b
-		"""
-		A_prev, W, b = cache
-		m = A_prev.shape[1]
-
-		dW = (1. / m) * np.dot(dZ, cache[0].T) 
-		db = (1. / m) * np.sum(dZ, axis=1, keepdims=True)
-		dA_prev = np.dot(cache[1].T, dZ)
-
-		return dA_prev, dW, db
-
-	def linear_activation_backward(self, dA, cache, activation):
-	    """
-	    Implement the backward propagation for the LINEAR->ACTIVATION layer.
-	    
-	    Arguments:
-	    dA -- post-activation gradient for current layer l 
-	    cache -- tuple of values (linear_cache, activation_cache) we store for computing backward propagation efficiently
-	    activation -- the activation to be used in this layer, stored as a text string: "sigmoid" or "relu"
-	    
-	    Returns:
-	    dA_prev -- Gradient of the cost with respect to the activation (of the previous layer l-1), same shape as A_prev
-	    dW -- Gradient of the cost with respect to W (current layer l), same shape as W
-	    db -- Gradient of the cost with respect to b (current layer l), same shape as b
-	    """
-	    linear_cache, activation_cache = cache
-	    
-	    if activation == "relu":
-	        dZ = relu_backward(dA, activation_cache)
-	        dA_prev, dW, db = self.linear_backward(dZ, linear_cache)
-	        
-	    elif activation == "sigmoid":
-	        dZ = sigmoid_backward(dA, activation_cache)
-	        dA_prev, dW, db = self.linear_backward(dZ, linear_cache)
-	    
-	    elif activation == "softmax":
-	        dZ = softmax_backward(dA, activation_cache)
-	        dA_prev, dW, db = self.linear_backward(dZ, linear_cache)
-	    
-	    return dA_prev, dW, db
-
-	def L_model_backward(self, AL, Y, caches, weights):
-	    """
-	    Implement the backward propagation for the [LINEAR->RELU] * (L-1) -> LINEAR -> SIGMOID group
-	    
-	    Arguments:
-	    AL -- probability vector, output of the forward propagation (L_model_forward())
-	    Y -- true "label" vector (containing 0 if non-cat, 1 if cat)
-	    caches -- list of caches containing:
-	                every cache of linear_activation_forward() with "relu" (it's caches[l], for l in range(L-1) i.e l = 0...L-2)
-	                the cache of linear_activation_forward() with "sigmoid" (it's caches[L-1])
-	    
-	    Returns:
-	    grads -- A dictionary with the gradients
-	             grads["dA" + str(l)] = ... 
-	             grads["dW" + str(l)] = ...
-	             grads["db" + str(l)] = ... 
-	    """
-	    grads = {}
-	    L = len(caches) # the number of layers
-	    m = AL.shape[1]
-	    Y = Y.reshape(AL.shape) # after this line, Y is the same shape as AL
-	    
-	    # Initializing the backpropagation (derivative of cost)
-	    #dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL)) # Cross-entropy derivative
-	    dAL = 2 * weights * (AL - Y) # Mean Square Error derivative
-
-	    
-	    # Lth layer (SIGMOID -> LINEAR) gradients. Inputs: "AL, Y, caches". Outputs: "grads["dAL"], grads["dWL"], grads["dbL"]
-	    current_cache = caches[-1]
-	    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = self.linear_activation_backward(dAL, current_cache, activation="softmax")
-	    
-	    for l in reversed(range(L-1)):
-	        # lth layer: (RELU -> LINEAR) gradients.
-	        # Inputs: "grads["dA" + str(l + 2)], caches". Outputs: "grads["dA" + str(l + 1)] , grads["dW" + str(l + 1)] , grads["db" + str(l + 1)] 
-	        current_cache = caches[l]
-	        
-	        dA_prev_temp, dW_temp, db_temp = self.linear_activation_backward(grads["dA" + str(l + 2)], current_cache, activation="relu")
-	        grads["dA" + str(l + 1)] = dA_prev_temp
-	        grads["dW" + str(l + 1)] = dW_temp
-	        grads["db" + str(l + 1)] = db_temp
-
-	    return grads
-
-	def update_parameters(self, parameters, grads, learning_rate):
-		"""
-		Update parameters using gradient descent
-
-		Arguments:
-		parameters -- python dictionary containing your parameters 
-		grads -- python dictionary containing your gradients, output of L_model_backward
-
-		Returns:
-		parameters -- python dictionary containing your updated parameters 
-		              parameters["W" + str(l)] = ... 
-		              parameters["b" + str(l)] = ...
-		"""
-
-		L = len(parameters) // 2 # number of layers in the neural network
-
-		# Update rule for each parameter. Use a for loop.
-		for l in range(L):
-			parameters["W" + str(l+1)] = parameters["W" + str(l+1)] - learning_rate * grads["dW" + str(l+1)]
-			parameters["b" + str(l+1)] = parameters["b" + str(l+1)] - learning_rate * grads["db" + str(l+1)]
-		    
-		return parameters
-
-	def gradient_check_n(self, parameters, gradients, X, Y, epsilon = 1e-7):
-		"""
-		Checks if backward_propagation_n computes correctly the gradient of the cost output by forward_propagation_n
-
-		Arguments:
-		parameters -- python dictionary containing your parameters "W1", "b1", "W2", "b2", "W3", "b3":
-		grad -- output of backward_propagation_n, contains gradients of the cost with respect to the parameters. 
-		x -- input datapoint, of shape (input size, 1)
-		y -- true "label"
-		epsilon -- tiny shift to the input to compute approximated gradient with formula(1)
-
-		Returns:
-		difference -- difference (2) between the approximated gradient and the backward propagation gradient
-		"""
-
-		# Set-up variables
-		parameters_values, _ = dictionary_to_vector(parameters)
-		grad = gradients_to_vector(gradients)
-		print(grad.shape)
-		num_parameters = parameters_values.shape[0]
-		print(parameters_values.shape)
-		J_plus = np.zeros((num_parameters, 1))
-		J_minus = np.zeros((num_parameters, 1))
-		gradapprox = np.zeros((num_parameters, 1))
-		maxdif = 0
-
-		# Compute gradapprox
-		for i in range(num_parameters):
-			if i % 1000 == 0:
-				print()
-				print(i)
-		    
-			# Compute J_plus[i]. Inputs: "parameters_values, epsilon". Output = "J_plus[i]".
-			# "_" is used because the function you have to outputs two parameters but we only care about the first one
-			### START CODE HERE ### (approx. 3 lines)
-			thetaplus = np.copy(parameters_values)                                      # Step 1
-			thetaplus[i][0] += epsilon
-
-			AL, _ = self.L_model_forward(X, vector_to_dictionary(thetaplus, self.parameters))
-			J_plus[i] = self.compute_cost_cross_entropy(AL, Y)
-
-			# Compute J_minus[i]. Inputs: "parameters_values, epsilon". Output = "J_minus[i]".
-			thetaminus = np.copy(parameters_values)                                     # Step 1
-			thetaminus[i][0] -= epsilon                               # Step 2    
-			AL, _ = self.L_model_forward(X, vector_to_dictionary(thetaminus, self.parameters))    
-			J_minus[i] = self.compute_cost_cross_entropy(AL, Y)                               # Step 3
-
-			# Compute gradapprox[i]
-			gradapprox[i] = (J_plus[i] - J_minus[i]) / (2. * epsilon)
-			dif = np.squeeze(grad[i] - gradapprox[i])
-
-			print(dif,"      \r", end='')
-			if abs(dif) > abs(maxdif):
-				maxdif = dif
-				print(i, maxdif)
-
-		# Compare gradapprox to backward propagation gradients by computing difference.
-		### START CODE HERE ### (approx. 1 line)
-		numerator = np.linalg.norm(grad - gradapprox)                               # Step 1'
-		denominator = np.linalg.norm(grad) + np.linalg.norm(gradapprox)             # Step 2'
-		difference = numerator / denominator  
-
-		if difference > 1e-7:
-		    print ("\033[93m" + "There is a mistake in the backward propagation! difference = " + str(difference) + "\033[0m")
-		else:
-		    print ("\033[92m" + "Your backward propagation works perfectly fine! difference = " + str(difference) + "\033[0m")
-
-		return difference

@@ -115,28 +115,53 @@ if input("Play game [Y/n]:") == "Y":
 			else: #game with a black move
 				black_game_batch.append(game) #append to list of games with black moves
 		batch_count += 1 # this is the first batch
-		red_Y_batch = np.zeros((48, len(red_game_batch)))
-		black_Y_batch = np.zeros((48, len(black_game_batch)))
-		red_X_batch = np.zeros((red_model.layers_dims[0], len(red_game_batch))) # np array to hold X values for all games where it's a red move (column vector * number of red move games)
-		black_X_batch = np.zeros((black_model.layers_dims[0], len(black_game_batch))) # np array to hold X values for all games where it's a black move (column vector * number of black move games)
+		red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_batch))) # np array to hold X values for all games where it's a red move (column vector * number of red move games)
+		black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_batch))) # np array to hold X values for all games where it's a black move (column vector * number of black move games)
+		red_Y_parallel = np.zeros((48, len(red_game_batch)))
+		black_Y_parallel = np.zeros((48, len(black_game_batch)))
+		red_mask_parallel = np.zeros((48, len(red_game_batch)))
+		black_mask_parallel = np.zeros((48, len(black_game_batch)))
+		red_attemptes_parallel = np.zeros((1, len(red_game_batch)))
+		black_attemptes_parallel = np.zeros((1, len(black_game_batch)))
+		black_game_numbers = np.zeros((1, len(black_game_batch)))
+		red_game_numbers = np.zeros((1, len(red_game_batch)))
 		for n, game in enumerate(red_game_batch):
 			"""
 			Step through each game in the red training batch. For each game, get the input vector (X) from
 			the model and add it to the appropriate location in the red_X_batch.
 			Also for each game, get the Y (legal moves) and add it to the red_Y_batch.
 			"""
-			X, Y = game.generate_XY()
-			red_X_batch[n] = X
-			red_Y_batch[n] = Y
+			X, Y, mask = game.generate_X_Y_mask()
+			red_X_parallel[n] = X
+			red_Y_parallel[n] = Y
+			red_mask_parallel[n] = mask
+			red_game_numbers[n] = game.number
 		for n, game in enumerate(black_game_batch):
 			"""
 			Step through each game in the black training batch. For each game, get the input vector (X) from
 			the model and add it to the appropriate location in the black_X_batch.
 			Also for each game, get the Y (legal moves) and add it to the black_Y_batch.
 			"""
-			X, Y = game.generate_XY()
-			black_X_batch[n] = X
-			black_Y_batch[n] = Y
+			X, Y, mask = game.generate_X_Y_mask()
+			black_X_parallel[n] = X
+			black_Y_parallel[n] = Y
+			black_mask_parallel[n] = mask
+			black_game_numbers[n] = game.number
+		red_AL = red_model.parallel_move(red_X_parallel, red_game_numbers)
+		black_AL = black_model.parallel_move(black_X_parallel, black_game_numbers)
+		# count up attempts to get to a legal move
+		# make the legal move
+		for n, game in enumerate(red_game_batch):
+			num_attempts = 1 # every move takes at least one attempt to get correct
+			if np.count_nonzero(red_Y_parallel[n]) != 0: # if there are any legal moves at all
+				one_hot_move, piece_number, move = generate_move(red_model, red_AL[n]) # make a dice-roll attempt
+				while np.count_nonzero(one_hot_move * board_legal_moves) == 0: # check if the cuurent proposed move is illegal
+					num_attempts += 1 # increment the number of attempts
+					one_hot_move, piece_number, move = generate_move(red_model, red_AL[n])
+				red_attempts_parallel[n] = num_attempts
+
+
+
 		win, side, red_piece_count, black_piece_count, red_move_count, black_move_count, red_illegal_count, black_illegal_count = game.play_game()
 		red_illegal_total += red_illegal_count
 		black_illegal_total += black_illegal_count
@@ -217,4 +242,13 @@ if input("Play game [Y/n]:") == "Y":
 			black_move_total = 0
 			red_player.reset()
 			black_player.reset()
+
+def generate_move(model, AL):
+	move = np.squeeze(np.random.choice(48, 1, p=AL[n].flatten()/np.sum(AL[n].flatten()))) # roll the dice and pick a move from the output probs
+	one_hot_move = np.eye(48, dtype = 'int')[move] # convert to one-hot
+	one_hot_move = one_hot_move.reshape(one_hot_move.size, -1) # make it into a column vector
+	piece_number = int(np.argmax(one_hot_move)/4) # get the piece number that the move applies to
+	move = one_hot_move[(4 * piece_number):((4 * piece_number) + 4)] # generate the move for that piece
+
+	return one_hot_move, piece_number, move
 
