@@ -349,8 +349,7 @@ class FCN_TF:
 
 
 	def make_Y(self, probs, masks):
-		Y = np.minimum(probs, masks) # 0 for everything that's 0 in the mask
-		Y[Y > 0] = 1 # 1 for everything that isn't
+		Y = masks
 		# looks like Y should end up being masks
 		S = np.sum(Y, axis = 0) # sum of total legal moves
 		S[S == 0] = 1
