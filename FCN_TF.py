@@ -258,14 +258,17 @@ class FCN_TF:
 		return one_hot_move, self.board_legal_moves
 
 	def parallel_predict(self, X, game_numbers):
-		[self.AL, self.caches] = self.sess.run([self.AL_m, self.caches_m], feed_dict = {self.X_m: self.X})
-		self.probabilities_batch.append(self.AL) # append the output probabilities for the parallel game moves to the probabilities batch
-		self.game_numbers.append(game_numbers)
-		self.X_batch.append(X)
+		[self.AL, self.caches] = self.sess.run([self.AL_m, self.caches_m], feed_dict = {self.X_m: X})
 
 		return self.AL
 
+	def generate_move(self, AL): # generate a move from a probabilities vector
+		choice = np.squeeze(np.random.choice(48, 1, p=AL.flatten()/np.sum(AL.flatten()))) # roll the dice and p b
+		one_hot_move = np.eye(48, dtype = 'int')[choice] #generate one-hot version
+		piece_number = int(np.argmax(one_hot_move)/4) # get the piece number that the move applies to
+		move = one_hot_move[(4 * piece_number):((4 * piece_number) + 4)] # generate the move for that piece
 
+		return one_hot_move, piece_number, move
 
 	def complete_move(self):
 		self.moves[-1] = self.new_move
@@ -374,8 +377,7 @@ class FCN_TF:
 			jump = np.array([0])
 		v = np.append(v, j_vector)
 		v = np.append(v, jump)	
-
-		return v.reshape(v.size, -1)
+		return v
 
 	def L_model_forward(self, X, parameters):
 		"""

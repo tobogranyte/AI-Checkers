@@ -14,6 +14,23 @@ class RMM:
 
 		return one_hot_move, self.board_legal_moves
 
+	def parallel_predict(self, X, game_numbers):
+		"""
+		in a functioning model, this would generate a matrix of probabilities. For this random number generating "model"
+		it will just return a zeros matrix of the correct dimensions that will later be filled (in generate_move) with one_hot
+		random values
+		"""
+		move = np.zeros((48,X.shape[1]))
+		return move
+
+	def generate_move(self, AL): # generate a move from a probabilities vector
+		choice = np.random.randint(48)
+		one_hot_move = np.eye(48, dtype = 'int')[choice] #generate one-hot version
+		piece_number = int(np.argmax(one_hot_move)/4) # get the piece number that the move applies to
+		move = one_hot_move[(4 * piece_number):((4 * piece_number) + 4)] # generate the move for that piece
+
+		return one_hot_move, piece_number, move
+
 	def complete_move(self):
 		pass
 

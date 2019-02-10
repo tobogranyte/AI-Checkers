@@ -18,7 +18,7 @@ class Board:
 			self.place_piece(self.black_piece[p])
 
 	def red_state(self): # return the objective board state
-		return self.red_state
+		return self.state
 
 	def red_home_view(self): # return the red state view of the board for the model
 		return self.state
