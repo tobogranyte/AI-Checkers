@@ -17,6 +17,9 @@ train_black = 'n'
 red_wins = 0
 black_wins = 0
 batch_count = 0
+games_total = 0
+red_win_pct = 0
+black_win_pct = 0
 red_illegal_total = 0
 red_move_total = 0
 black_illegal_total = 0
@@ -51,6 +54,10 @@ def tally_and_print_stats(game):
 	global red_move_total
 	global black_illegal_total
 	global black_move_total
+	global red_win_pct
+	global black_win_pct
+	global red_illegal_pct
+	global black_illegal_pct
 
 	win, side, red_piece_count, black_piece_count, red_move_count, black_move_count, red_illegal_count, black_illegal_count = game.stats()
 	red_illegal_total += game.red_attempts - game.red_moves
@@ -147,6 +154,8 @@ if input("Play game [Y/n]:") == "Y":
 				red_game_set.append(game) # append to list of games with red moves
 			else: #game with a black move
 				black_game_set.append(game) #append to list of games with black moves
+		games_total += train_games
+
 		batch_count += 1 # this is the first batch
 		red_X_parallel_batch = []
 		black_X_parallel_batch = []
@@ -261,21 +270,20 @@ if input("Play game [Y/n]:") == "Y":
 						red_game_set.append(game) # append to list of games with red moves
 					else: #game with a black move
 						black_game_set.append(game) #append to list of games with black moves
-		input("READY FOR TRAINING")
 
 
-		if (train == "Y" or train_red == "Y" or train_black == "Y") and (games % train_games == 0):
+		if (train == "Y" or train_red == "Y" or train_black == "Y"):
 			if symmetric:
 				print("Training model...")
 			else:
 				if train_red == "Y":
 					print("Training Red...")
-					cost, params = red_player.train_model()
+					cost, params = red_model.train(Y = np.hstack(red_Y_parallel_batch), X = np.hstack(red_X_parallel_batch), weights = np.hstack(red_attempts_parallel_batch), illegal_masks = np.hstack(red_mask_parallel_batch))
 					illegal_means = params["illegal_means"]
 					legal_means = params["legal_means"]
 					minimums = params["mins"]
 					maximums = params["maxes"]
-					red_player.save_parameters()
+					red_model.save_parameters()
 				if train_black == "Y":
 					print("Training Black...")
 					black_player.train_model()
@@ -297,7 +305,7 @@ if input("Play game [Y/n]:") == "Y":
 			min_hist4.append(minimums[4])
 			min_hist5.append(minimums[5])
 			cost_hist.append(cost)
-			games_hist.append(games)
+			games_hist.append(games_total)
 			if (params["trainings"] % plot_interval == 0) or params["trainings"] < 100:
 				#ax1.plot(games_hist, red_win_pct_hist, 'r-', games_hist, black_win_pct_hist, 'k-')
 				ax1.plot(games_hist, illegal_means, 'r-', games_hist, legal_means, 'g-')

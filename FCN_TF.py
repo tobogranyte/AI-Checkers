@@ -277,40 +277,40 @@ class FCN_TF:
 
 
 
-	def train(self):
+	def train(self, Y, X, weights, illegal_masks):
 		params = {}
 		self.batch_num += 1
-		masks = np.hstack(self.illegal_masks)
+#		masks = np.hstack(self.illegal_masks)
 
-		Y = self.make_Y(np.hstack(self.probabilities_batch), masks) # use if only training on legal moves, not all moves
+#		Y = self.make_Y(np.hstack(self.probabilities_batch), masks) # use if only training on legal moves, not all moves
 #		Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
-		X_batch = np.hstack(self.X_batch)
-		print(X_batch.shape)
+#		X_batch = np.hstack(self.X_batch)
+		print(X.shape)
 
-		weights = np.hstack(self.num_attempts_batch)
-		weights = weights.reshape(1, weights.size)
+#		weights = np.hstack(self.num_attempts_batch)
+#		weights = weights.reshape(1, weights.size)
 
 		print(weights.shape)
 
 		for i in range(0, 10):
 
-			AL, caches, cost = self.sess.run([self.AL_m, self.caches_m, self.cost], feed_dict = {self.X_m: X_batch, self.Y_m: Y, self.weights: weights})
+			AL, caches, cost = self.sess.run([self.AL_m, self.caches_m, self.cost], feed_dict = {self.X_m: X, self.Y_m: Y, self.weights: weights})
 #			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters) # use if only training on legal moves, not all moves
 #			AL, caches = self.L_model_forward(np.hstack(self.attempts_X_batch), self.parameters) # use if training on all illegal attempts
 
-			if i == 0:
-				r = np.random.randint(0,AL.shape[1])
-				R_AL = AL[:, r]
-				R_masks = masks[:, r]
-				R = [R_AL, R_masks]
-				with open('FCN_TF/random/random_move_'+ str(self.batch_num) + '.pkl', 'wb') as f:
-					pickle.dump(R, f, pickle.HIGHEST_PROTOCOL)
+#			if i == 0:
+#				r = np.random.randint(0,AL.shape[1])
+#				R_AL = AL[:, r]
+#				R_masks = masks[:, r]
+#				R = [R_AL, R_masks]
+#				with open('FCN_TF/random/random_move_'+ str(self.batch_num) + '.pkl', 'wb') as f:
+#					pickle.dump(R, f, pickle.HIGHEST_PROTOCOL)
 
-				pre_cost = cost
+#				pre_cost = cost
 				#pre_cost = self.compute_cost_mean_square_error(AL, Y, weights)
 				#pre_cost = self.compute_cost_cross_entropy(AL, Y)
 
-			_ , cost = self.sess.run([self.optimizer, self.cost], feed_dict={self.X_m: X_batch, self.Y_m: Y, self.weights: weights})
+			_ , cost = self.sess.run([self.optimizer, self.cost], feed_dict={self.X_m: X, self.Y_m: Y, self.weights: weights})
 			#grads = self.L_model_backward(AL, Y, caches, weights)
 
 			#self.parameters = self.update_parameters(self.parameters, grads, learning_rate=learning_rate)
@@ -328,7 +328,7 @@ class FCN_TF:
 		#cost = self.compute_cost_cross_entropy(AL, Y)
 		self.trainings += 1
 		self.plot_activations()
-		legal_mean, illegal_mean = self.get_means(AL, np.hstack(self.illegal_masks)) # use if only training on legal moves, not all moves
+		legal_mean, illegal_mean = self.get_means(AL, illegal_masks) # use if only training on legal moves, not all moves
 #		legal_mean, illegal_mean = self.get_means(AL, np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
 
 		self.legal_means.append(legal_mean)
