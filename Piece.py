@@ -9,7 +9,7 @@ class Piece:
 		self.color = color
 		self.king = king
 		self.in_play = in_play
-		self.flatten_position()
+		self.flatten_position() # pretty sure I never use the array this creates
 
 		# Generate an array for this piece which will be able to map z values to whatever board position this piece occupies
 		self.update_position_array()
@@ -33,7 +33,7 @@ class Piece:
 		# facing the player.
 
 		self.flattened_position = np.zeros((32,1), dtype = int)
-		self.flattened_position[(7 - self.yPosition) * 4 + self.xPosition] = 1
+		self.flattened_position[(7 - self.yPosition) * 4 + self.xPosition] = 1 # pretty sure I never use this
 
 	def legal_moves(self, board):
 		m = np.zeros(4, dtype = int).reshape(2,2) # default 2x2 matrix is all zeros until a move is deterimined
@@ -42,6 +42,34 @@ class Piece:
 			if self.king:
 				m[1, :] = np.array([self.backward_left(board), self.backward_right(board)]) # update values for backward moves if piece is king
 		return m
+
+	def spaces(self, board):
+		xOffset = np.zeros((4,2), int) # Array that will contain x offsets relative to the current x position. Two rows forward and two rows backward.
+		spaces = np.ones((4,4,2), int)
+		# Array that will contain the board state for all four possible move directions, jump and regular.
+		if self.in_play:
+			if self.yPosition%2 == 0: # even row
+				xOffset = np.array([[-1, 1], [-1, 0], [-1, 0], [-1, 1]]) # generate x offsets for the forward, backward, jump and regular moves.
+			else: # odd row
+				xOffset = np.array([[-1, 1], [0, 1], [0, 1], [-1, 1]]) # generate x offsets for the forward, backward, jump and regular moves.
+			for p in range (2,0,-1):
+				if self.yPosition + p <= 7 :
+					xTarget = self.xPosition + xOffset[2 - p, 0]
+					if xTarget >= 0 and xTarget <= 3 :
+						spaces[:, 2 - p, 0] = board.position_array(self.color, self.yPosition + p, xTarget)
+					xTarget = self.xPosition + xOffset[2 - p, 1]
+					if xTarget >= 0 and xTarget <= 3 :
+						spaces[:, 2 - p, 1] = board.position_array(self.color, self.yPosition + p, xTarget)
+			for p in range (1,3):
+				if self.yPosition - p >= 0 :
+					xTarget = self.xPosition + xOffset[1 + p, 0]
+					if xTarget >= 0 and xTarget <= 3 :
+						spaces[:, 1 + p, 0] = board.position_array(self.color, self.yPosition - p, xTarget)
+					xTarget = self.xPosition + xOffset[1 + p, 1]
+					if xTarget >= 0 and xTarget <= 3 :
+						spaces[:, 1 + p, 1] = board.position_array(self.color, self.yPosition - p, xTarget)
+		return spaces
+
 
 	def make_king(self):
 		self.king = True
@@ -55,18 +83,18 @@ class Piece:
 				c = board.color((self.yPosition + 1), (self.xPosition - 1), self.color) # color in forward left position
 				if self.yPosition != 6: # can move up to two positions forward
 					c2 = board.color((self.yPosition + 2), (self.xPosition - 1), self.color) #color in forward left jump position
-					if c  == self.color:
+					if c  == self.color: # forward left occupied by same color (no moves available)
 						return 0
-					elif c == "O":
+					elif c == "O": # forward left unoccupied
 						return 1
-					elif c2 == "O":
+					elif c2 == "O": # forward left jump unoccupied
 						return 2
-					else:
+					else: # no moves available
 						return 0
-				else:
-					if c != "O":
+				else: # can move only move one position forward
+					if c != "O": # forward left occupied
 						return 0
-					else:
+					else: #forward left available
 						return 1
 		elif  self.yPosition == 7: # odd and last row
 			return 0 # no possible forward moves
@@ -74,13 +102,13 @@ class Piece:
 			c = board.color((self.yPosition + 1), (self.xPosition), self.color)
 			if self.xPosition != 0: # odd and not the leftmost position
 				c2 = board.color((self.yPosition + 2), (self.xPosition - 1), self.color)
-				if c  == self.color:
+				if c  == self.color:  # forward left occupied by same color (no moves available)
 					return 0
-				elif c == "O":
+				elif c == "O":  # forward left unoccupied
 					return 1
-				elif c2 == "O":
+				elif c2 == "O": # forward left jump unoccupied
 					return 2
-				else:
+				else: 
 					return 0
 			else: # odd and leftmost position
 				if c != "O":

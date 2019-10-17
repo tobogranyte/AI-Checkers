@@ -127,6 +127,12 @@ class Board:
 		return board
 		#print(s)
 
+	def position_array(self, color, yPosition, xPosition): # return a position array [n,n,n,n] for the xPosition and yPosition from the vantage point of color
+		if color == "Red":
+			return self.red_home_view()[:, 7-yPosition, xPosition]
+		else:
+			return self.black_home_view()[:, 7-yPosition, xPosition]
+
 	def place_piece(self, piece):
 		if piece.color == "Red":
 			self.red_state()[:, 7 - piece.yPosition, piece.xPosition] = piece.position_array
@@ -188,6 +194,15 @@ class Board:
 		elif player == "Black":
 			return self.black_state()[:, 7-y, x]
 
+	def get_piece_arrays(self, color):
+		piece_arrays = np.zeros(384, int)
+		if color == "Red":
+			for p in range (12):
+				piece_arrays[32*p:32*(p+1)] = self.red_piece[p].spaces(self).flatten()
+		else:
+			for p in range (12):
+				piece_arrays[32*p:32*(p+1)] = self.black_piece[p].spaces(self).flatten()
+		return piece_arrays
 
 	# return the color in a given x, y position from the vantage point of player
 	def color(self, y, x, player):
