@@ -292,7 +292,7 @@ class FCN_TF_p:
 
 		print(weights.shape)
 
-		for i in range(0, 10):
+		for i in range(0, 1):
 
 			AL, caches, cost = self.sess.run([self.AL_m, self.caches_m, self.cost], feed_dict = {self.X_m: X, self.Y_m: Y, self.weights: weights})
 #			AL, caches = self.L_model_forward(np.hstack(self.X_batch), self.parameters) # use if only training on legal moves, not all moves
