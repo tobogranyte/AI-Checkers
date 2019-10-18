@@ -1,0 +1,42 @@
+TensorFlow 2.0 Upgrade Script
+-----------------------------
+Converted 1 files
+Detected 3 issues that require attention
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+File: FCN_TF.py
+--------------------------------------------------------------------------------
+FCN_TF.py:136:14: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+FCN_TF.py:178:30: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+FCN_TF.py:180:30: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+================================================================================
+Detailed log follows:
+
+================================================================================
+--------------------------------------------------------------------------------
+Processing file 'FCN_TF.py'
+ outputting to 'FCN_TF2.py'
+--------------------------------------------------------------------------------
+
+11:2: INFO: Renamed 'tf.reset_default_graph' to 'tf.compat.v1.reset_default_graph'
+13:14: INFO: Renamed 'tf.Session' to 'tf.compat.v1.Session'
+23:19: INFO: Renamed 'tf.train.GradientDescentOptimizer' to 'tf.compat.v1.train.GradientDescentOptimizer'
+24:14: INFO: Renamed 'tf.global_variables_initializer' to 'tf.compat.v1.global_variables_initializer'
+25:15: INFO: Renamed 'tf.train.Saver' to 'tf.compat.v1.train.Saver'
+136:14: WARNING: *.save requires manual check. (This warning is only applicable if the code saves a tf.Keras model) Keras model.save now saves to the Tensorflow SavedModel format by default, instead of HDF5. To continue saving to HDF5, add the argument save_format='h5' to the save() function.
+178:30: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+178:30: INFO: Renamed 'tf.get_variable' to 'tf.compat.v1.get_variable'
+178:106: INFO: Changing tf.contrib.layers xavier initializer to a tf.compat.v1.keras.initializers.VarianceScaling and converting arguments.
+
+180:30: WARNING: tf.get_variable requires manual check. tf.get_variable returns ResourceVariables by default in 2.0, which have well-defined semantics and are stricter about shapes. You can disable this behavior by passing use_resource=False, or by calling tf.compat.v1.disable_resource_variables().
+180:30: INFO: Renamed 'tf.get_variable' to 'tf.compat.v1.get_variable'
+180:92: INFO: tf.zeros_initializer requires manual check. Initializers no longer have the dtype argument in the constructor or partition_info argument in the __call__ method.
+The calls have been converted to compat.v1 for safety (even though they may already have been correct).
+180:92: INFO: Renamed 'tf.zeros_initializer' to 'tf.compat.v1.zeros_initializer'
+206:6: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+207:6: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+208:12: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+467:9: INFO: Added keywords to args of function 'tf.reduce_mean'
+467:24: INFO: Added keywords to args of function 'tf.reduce_sum'
+--------------------------------------------------------------------------------
+

@@ -8,9 +8,10 @@ import tensorflow as tf
 class FCN_TF:
 
 	def __init__(self):
-		tf.reset_default_graph()
+		tf.compat.v1.disable_eager_execution()
+		tf.compat.v1.reset_default_graph()
 		self.batch_num = 0
-		self.sess = tf.Session()
+		self.sess = tf.compat.v1.Session()
 		self.layers_dims = [537, 2048, 1024, 524, 262, 131, 48] #  6-layer model
 		self.learning_rate = 0.03
 		checkpoint = False
@@ -20,9 +21,9 @@ class FCN_TF:
 		self.X_m, self.Y_m, self.weights = self.create_placeholders(537, 48, 1)
 		self.AL_m, self.caches_m = self.L_model_forward(self.X_m, self.parameters)
 		self.cost = self.compute_cost_mean_square_error(self.AL_m, self.Y_m, self.weights)
-		self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
-		self.init = tf.global_variables_initializer()
-		self.saver = tf.train.Saver()
+		self.optimizer = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
+		self.init = tf.compat.v1.global_variables_initializer()
+		self.saver = tf.compat.v1.train.Saver()
 		available = self.check_for_params()
 		self.sess.run(self.init)
 		name = ''
@@ -175,9 +176,9 @@ class FCN_TF:
 
 		for l in range(1, L):
 			#parameters['W' + str(l)] = np.random.randn(layer_dims[l], layer_dims[l-1]) / np.sqrt(layer_dims[l-1]/2)
-			parameters['W' + str(l)] = tf.get_variable('W' + str(l), [layer_dims[l], layer_dims[l-1]], initializer=tf.contrib.layers.xavier_initializer())
+			parameters['W' + str(l)] = tf.compat.v1.get_variable('W' + str(l), [layer_dims[l], layer_dims[l-1]], initializer=tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform"))
 			#parameters['b' + str(l)] = np.zeros((layer_dims[l], 1)) 
-			parameters['b' + str(l)] = tf.get_variable('b' + str(l), [layer_dims[l], 1], initializer=tf.zeros_initializer())
+			parameters['b' + str(l)] = tf.compat.v1.get_variable('b' + str(l), [layer_dims[l], 1], initializer=tf.compat.v1.zeros_initializer())
 
 			#assert(parameters['W' + str(l)].shape == (layer_dims[l], layer_dims[l-1]))
 			#assert(parameters['b' + str(l)].shape == (layer_dims[l], 1))
@@ -203,9 +204,9 @@ class FCN_TF:
 		"""
 
 		### START CODE HERE ### (approx. 2 lines)
-		X = tf.placeholder(tf.float32, shape=[n_x, None], name='X')
-		Y = tf.placeholder(tf.float32, shape=[n_y, None], name='Y')
-		weights = tf.placeholder(tf.int32, shape=[n_w, None], name='weights')
+		X = tf.compat.v1.placeholder(tf.float32, shape=[n_x, None], name='X')
+		Y = tf.compat.v1.placeholder(tf.float32, shape=[n_y, None], name='Y')
+		weights = tf.compat.v1.placeholder(tf.int32, shape=[n_w, None], name='weights')
 		### END CODE HERE ###
 
 		return X, Y, weights
@@ -464,7 +465,7 @@ class FCN_TF:
 		w = tf.cast(weights, tf.float32)
 		# Compute loss from aL and y.
 		#cost = tf.losses.mean_squared_error(Y, AL, weights=weights, reduction=Reduction.MEAN)
-		cost = tf.reduce_mean(tf.reduce_sum(tf.multiply(w, tf.square(tf.subtract(Y, AL))), axis = 0))
+		cost = tf.reduce_mean(input_tensor=tf.reduce_sum(input_tensor=tf.multiply(w, tf.square(tf.subtract(Y, AL))), axis = 0))
 		#cost = (1./ m) * np.sum(weights * np.square(Y - AL))
 
 		return cost
