@@ -7,6 +7,7 @@ class Board:
 		self.state = np.zeros((4, 8, 4), int) #set all board positions to [0,0,0,0] vectors
 		self.red_numbers = np.zeros((8, 4), int) - 1 
 		self.black_numbers = np.zeros((8, 4), int) - 1 
+		self.jump_mask = np.array([1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1], dtype = 'int')
 
 	def setup(self): # set up all pieces in starting positions
 		self.red_piece = []
@@ -57,21 +58,22 @@ class Board:
 		return np.append(state[2:,:,:], state[:2,:,:], axis = 0)
 
 	def legal_moves(self, color, jump_piece_number = None, jump_rule = True):
-		# return a 48 element array with all the legal moves for pieces 0-11 consecutively
+		# return a 96 element array with all the legal moves for pieces 0-11 consecutively
 		# 0 = illegal, 1 = legal, 2 = legal jump
+		
+		# jump_mask is a mask showing just the moves in a 96 element flattened array that are jump moves.
 		if color == "Red":
 			piece = self.red_piece
 		else:
 			piece = self.black_piece
+		moves = np.zeros((96), dtype = 'int') # zero array to put the legal moves
 		if jump_piece_number: # this is the second, mandatory jump move after a first jump
-			moves = np.zeros((48), dtype = 'int')
-			moves[(jump_piece_number * 4):((jump_piece_number * 4) + 4)] = (piece[jump_piece_number].legal_moves(self).flatten()/2).astype(int) * 2
+			moves[(jump_piece_number * 8):((jump_piece_number * 8) + 8)] = piece[jump_piece_number].jump_moves(self).flatten() # insert possible jump moves for the jump piece into the move array
 		else:
-			moves = np.array((), dtype = 'int')
 			for p in piece:
-				moves = np.append(moves, p.legal_moves(self).flatten())
-			if np.max(moves) == 2 and jump_rule:
-				moves = (moves / 2).astype(int) * 2
+				moves[(p.number * 8):((p.number * 8) + 8)] = p.legal_moves(self).flatten() # insert legal moves for the selected piece into the move array
+			if np.max(moves * jump_mask) == 1 and jump_rule: # a jump is available and a jump rule (requiring the player to use a jump if availabe) is in effect
+				moves = np.max(moves * self.jump_mask) # mask only jump moves for legal moves
 		return moves
 
 	def piece_count(self, color):
@@ -171,11 +173,19 @@ class Board:
 			state = self.black_state() # set the opposition positions
 			numbers = self.black_numbers # set the array with all the black piece number positions
 			opposition_numbers = np.flip(np.flip(self.red_numbers, axis = 0), axis = 1) # set the opposition array with all the red piece number positions flipped
-		m = piece.legal_moves(self).flatten()[move] # retrieve the value for the move chosen (0 for illegal, 1 for move, 2 for jump)
-		y1 = int(move / 2) * (-2) + 1 # 
-		yDest = piece.yPosition + (y1) * m # destination y position
-		x1 = move%2 + piece.yPosition % 2 - 1
-		xDest = piece.xPosition + (x1 + ((move % 2 + ((piece.yPosition + 1 ) % 2 - 1)) * (m - 1))) * (m == 1 or m == 2) # destination x position
+		masked_move = piece.legal_moves(self).flatten() * move # mask the move with legal moves for that piece
+		vertical = np.sum(masked_move.reshape(4,2), axis=1) # vertical array of move in y axis
+		horizontal = np.sum(masked_move.reshape(4,2), axis=0)
+		left_right = np.argmax(horizontal)
+		m = np.array([2,1,1,2])[np.argmax(vertical)] # 2 for jump, 1 for move
+
+		yDest = piece.yPosition + (2 - np.argmax(np.insert(vertical, 2, 0))) 
+		x1 = left_right + piece.yPosition % 2 - 1 # x offset for first row from position
+		xDest = piece.xPosition + (x1 + ((left_right + ((piece.yPosition + 1 ) % 2 - 1)) * (m - 1))) * (m == 1 or m == 2) # destination x position
+		#                                |   x offset for first row from position    |   |     |
+		#                                ---------------------------------------------   -------
+		#                                                                             Don't include
+		#                                                                               if m == 1 (only moving 1 row)
 		if m == 2:
 			self.remove_piece(opposition_piece[opposition_numbers[7 - (piece.yPosition + y1), piece.xPosition + x1]])
 		state[:, 7 - piece.yPosition, piece.xPosition] = np.zeros(4, dtype=int)

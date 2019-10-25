@@ -12,13 +12,13 @@ class FCN_TF_p:
 		tf.compat.v1.reset_default_graph()
 		self.batch_num = 0
 		self.sess = tf.compat.v1.Session()
-		self.layers_dims = [397, 1024, 512, 256, 128, 64, 48] #  6-layer model
+		self.layers_dims = [445, 2048, 1024, 512, 256, 128, 96] #  6-layer model
 		self.learning_rate = 0.03
 		checkpoint = False
 		print("Initializing parameters...")
 		self.parameters = self.initialize_parameters_deep(self.layers_dims)
 		print("Parameters initialized!")
-		self.X_m, self.Y_m, self.weights = self.create_placeholders(397, 48, 1)
+		self.X_m, self.Y_m, self.weights = self.create_placeholders(445, 96, 1)
 		self.AL_m, self.caches_m = self.L_model_forward(self.X_m, self.parameters)
 		self.cost = self.compute_cost_mean_square_error(self.AL_m, self.Y_m, self.weights)
 		self.optimizer = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
@@ -264,10 +264,10 @@ class FCN_TF_p:
 		return self.AL
 
 	def generate_move(self, AL): # generate a move from a probabilities vector
-		choice = np.squeeze(np.random.choice(48, 1, p=AL.flatten()/np.sum(AL.flatten()))) # roll the dice and p b
-		one_hot_move = np.eye(48, dtype = 'int')[choice] #generate one-hot version
-		piece_number = int(np.argmax(one_hot_move)/4) # get the piece number that the move applies to
-		move = one_hot_move[(4 * piece_number):((4 * piece_number) + 4)] # generate the move for that piece
+		choice = np.squeeze(np.random.choice(96, 1, p=AL.flatten()/np.sum(AL.flatten()))) # roll the dice and p b
+		one_hot_move = np.eye(96, dtype = 'int')[choice] #generate one-hot version
+		piece_number = int(np.argmax(one_hot_move)/8) # get the piece number that the move applies to
+		move = one_hot_move[(8 * piece_number):((8 * piece_number) + 8)] # generate the move for that piece
 
 		return one_hot_move, piece_number, move
 

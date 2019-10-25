@@ -57,19 +57,18 @@ class Game:
 		return self.player.other_color
 
 	def make_move(self, move, piece_number):
-		board_move = np.zeros((48), dtype = 'int') # create output vector placeholder with zeros
+		board_move = np.zeros((96), dtype = 'int') # create output vector placeholder with zeros
 		# move, piece_number  = self.player.make_move(self.board, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get a move from the player
 		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves from the board
-		if np.max(move) != 0:
-			board_move[(piece_number * 4):((piece_number * 4) + 4)] = move # insert a 4 element vector of the moves for the chosen piece into the correct spot in the board move vector
+		if np.max(move) != 0: # there are legal moves
+			board_move[(piece_number * 8):((piece_number * 8) + 8)] = move # insert an 8 element vector of the moves for the chosen piece into the correct spot in the board move vector
 			move_array = board_legal_moves * board_move # generate an array that masks the board move with legal moves to determine whether the move is legal
 			while np.count_nonzero(move_array) == 0: # if there are all zeros, it's not legal
 				print("Checkers proposed illegal move!!")
-				board_move = np.zeros((48), dtype = 'int')
-				# move, piece_number  = self.player.make_move(self.board, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule)
-				board_move[(piece_number * 4):((piece_number * 4) + 4)] = move
+				board_move = np.zeros((96), dtype = 'int')
+				board_move[(piece_number * 8):((piece_number * 8) + 8)] = move
 				move_array = board_legal_moves * board_move
-			self.board.move_piece(self.player.color, piece_number, np.argmax(move)) # move the piece on the board
+			self.board.move_piece(self.player.color, piece_number, move) # move the piece on the board
 			self.player.increment_move_count()
 			#game_history.write(self.board.visual_state())
 			if np.max(move_array) == 2: # it was a jump
@@ -100,9 +99,9 @@ class Game:
 				if np.max(board_legal_moves) == 0:
 					self.win = True
 					self.side = self.player.other_color
-		else:
-			self.win = True
-			self.side = self.player.other_color
+		else:  # no legal moves
+			self.win = True # declare a win
+			self.side = self.player.other_color # set the side to the other color (who won)
 		#game_history.close()
 
 		return self.win, self.stalemate
