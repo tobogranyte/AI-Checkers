@@ -12,7 +12,7 @@ class FCN_TF_p:
 		tf.compat.v1.reset_default_graph()
 		self.batch_num = 0
 		self.sess = tf.compat.v1.Session()
-		self.layers_dims = [445, 2048, 1024, 512, 256, 128, 96] #  6-layer model
+		self.layers_dims = [397, 2048, 1024, 512, 256, 128, 96] #  6-layer model
 		self.learning_rate = 0.03
 		checkpoint = False
 		print("Initializing parameters...")

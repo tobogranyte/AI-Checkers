@@ -61,7 +61,6 @@ class Board:
 		# return a 96 element array with all the legal moves for pieces 0-11 consecutively
 		# 0 = illegal, 1 = legal, 2 = legal jump
 		
-		# jump_mask is a mask showing just the moves in a 96 element flattened array that are jump moves.
 		if color == "Red":
 			piece = self.red_piece
 		else:
@@ -72,7 +71,7 @@ class Board:
 		else:
 			for p in piece:
 				moves[(p.number * 8):((p.number * 8) + 8)] = p.legal_moves(self).flatten() # insert legal moves for the selected piece into the move array
-			if np.max(moves * jump_mask) == 1 and jump_rule: # a jump is available and a jump rule (requiring the player to use a jump if availabe) is in effect
+			if np.max(moves * self.jump_mask) == 1 and jump_rule: # a jump is available and a jump rule (requiring the player to use a jump if availabe) is in effect
 				moves = np.max(moves * self.jump_mask) # mask only jump moves for legal moves
 		return moves
 

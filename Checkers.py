@@ -190,6 +190,7 @@ if input("Play game [Y/n]:") == "Y":
 				Also for each game, get the Y (legal moves) and add it to the red_Y_batch.
 				"""
 				X, Y, mask = game.generate_X_Y_mask()
+				print("X.shape[0]: ", X.shape[0])
 				red_X_parallel[:,n] = X
 				red_Y_parallel[:,n] = Y
 				red_mask_parallel[:,n] = mask
