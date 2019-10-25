@@ -18,7 +18,7 @@ class FCN_TF_p:
 		print("Initializing parameters...")
 		self.parameters = self.initialize_parameters_deep(self.layers_dims)
 		print("Parameters initialized!")
-		self.X_m, self.Y_m, self.weights = self.create_placeholders(445, 96, 1)
+		self.X_m, self.Y_m, self.weights = self.create_placeholders(397, 96, 1)
 		self.AL_m, self.caches_m = self.L_model_forward(self.X_m, self.parameters)
 		self.cost = self.compute_cost_mean_square_error(self.AL_m, self.Y_m, self.weights)
 		self.optimizer = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
