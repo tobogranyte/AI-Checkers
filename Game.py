@@ -58,7 +58,6 @@ class Game:
 
 	def make_move(self, move, piece_number):
 		board_move = np.zeros((96), dtype = 'int') # create output vector placeholder with zeros
-		# move, piece_number  = self.player.make_move(self.board, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get a move from the player
 		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves from the board
 		if np.max(move) != 0: # there are legal moves
 			board_move[(piece_number * 8):((piece_number * 8) + 8)] = move # insert an 8 element vector of the moves for the chosen piece into the correct spot in the board move vector
