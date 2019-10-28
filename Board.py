@@ -72,7 +72,7 @@ class Board:
 			for p in piece:
 				moves[(p.number * 8):((p.number * 8) + 8)] = p.legal_moves(self).flatten() # insert legal moves for the selected piece into the move array
 			if np.max(moves * self.jump_mask) == 1 and jump_rule: # a jump is available and a jump rule (requiring the player to use a jump if availabe) is in effect
-				moves = np.max(moves * self.jump_mask) # mask only jump moves for legal moves
+				moves = moves * self.jump_mask # mask only jump moves for legal moves
 		return moves
 
 	def piece_count(self, color):
@@ -100,6 +100,9 @@ class Board:
 	def print_visual_state(self):
 		p = ["O", "r", "R", "b", "B"]
 		s = np.argmax(np.concatenate((np.zeros((1,8,4), dtype = int), self.red_state()), axis = 0), axis = 0)
+		own_numbers = self.red_numbers # set the array with all the red piece number positions
+		opposition_numbers = np.flip(np.flip(self.black_numbers, axis = 0), axis = 1) # set the opposition array with all the red piece number positions flipped
+		numbers = np.max(np.append(own_numbers, opposition_numbers).reshape(2,8,4), axis = 0)
 		i = 1
 		for y in s:
 			for x in y:
@@ -115,18 +118,48 @@ class Board:
 		board = ""
 		p = ["O", "r", "R", "b", "B"]
 		s = np.argmax(np.concatenate((np.zeros((1,8,4), dtype = int), self.red_state()), axis = 0), axis = 0)
+		own_numbers = self.red_numbers # set the array with all the red piece number positions
+		opposition_numbers = np.flip(np.flip(self.black_numbers, axis = 0), axis = 1) # set the opposition array with all the red piece number positions flipped
+		numbers = np.max(np.append(own_numbers, opposition_numbers).reshape(2,8,4), axis = 0)
 		i = 1
-		for y in s:
-			for x in y:
+		for idy, y in enumerate(s):
+			for idx, x in enumerate(y):
 				if i == 1:
-					board += ' ' + p[x]
+					board += '   ' + p[x]
+					if numbers[idy,idx] < 10 and numbers[idy,idx] >= 0:
+						board += '0'
+						board += numbers[idy,idx].astype(str)
+					elif numbers[idy,idx] < 0:
+						board += '  '
+					else:
+						board += numbers[idy,idx].astype(str)
 				else:
-					board += p[x] + ' '
+					board += p[x]
+					if numbers[idy,idx] < 10 and numbers[idy,idx] >= 0:
+						board += '0'
+						board += numbers[idy,idx].astype(str)
+					elif numbers[idy,idx] < 0:
+						board += '  '
+					else:
+						board += numbers[idy,idx].astype(str)
+					board += '   '
 			i = -i
 			board += '\n'
 		board += '\n'
 		return board
 		#print(s)
+
+	def pieces_out(self):
+		print("B Out:", end='')
+		for p in self.black_piece:
+			if p.in_play == False:
+				print(p.number, end = ' ')
+		print()
+		print("R Out:", end='')
+		for p in self.red_piece:
+			if p.in_play == False:
+				print(p.number, end = ' ')
+		print()
 
 	def position_array(self, color, yPosition, xPosition): # return a position array [n,n,n,n] for the xPosition and yPosition from the vantage point of color
 		if color == "Red":
@@ -177,8 +210,8 @@ class Board:
 		horizontal = np.sum(masked_move.reshape(4,2), axis=0)
 		left_right = np.argmax(horizontal)
 		m = np.array([2,1,1,2])[np.argmax(vertical)] # 2 for jump, 1 for move
-
-		yDest = piece.yPosition + (2 - np.argmax(np.insert(vertical, 2, 0))) 
+		y_offset = (2 - np.argmax(np.insert(vertical, 2, 0)))
+		yDest = piece.yPosition + y_offset
 		x1 = left_right + piece.yPosition % 2 - 1 # x offset for first row from position
 		xDest = piece.xPosition + (x1 + ((left_right + ((piece.yPosition + 1 ) % 2 - 1)) * (m - 1))) * (m == 1 or m == 2) # destination x position
 		#                                |   x offset for first row from position    |   |     |
@@ -186,7 +219,9 @@ class Board:
 		#                                                                             Don't include
 		#                                                                               if m == 1 (only moving 1 row)
 		if m == 2:
-			self.remove_piece(opposition_piece[opposition_numbers[7 - (piece.yPosition + y1), piece.xPosition + x1]])
+			opposition_number = opposition_numbers[7 - (piece.yPosition + int(y_offset / 2)), piece.xPosition + x1]
+			# print("Remove piece:", opposition_piece[opposition_number].color, opposition_number)
+			self.remove_piece(opposition_piece[opposition_number])
 		state[:, 7 - piece.yPosition, piece.xPosition] = np.zeros(4, dtype=int)
 		numbers[7 - piece.yPosition, piece.xPosition] = -1
 		piece.yPosition = yDest

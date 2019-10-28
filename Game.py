@@ -57,33 +57,30 @@ class Game:
 		return self.player.other_color
 
 	def make_move(self, move, piece_number):
-		print("Color")
-		pring(self.player.color)
-		print("move")
-		print(move)
-		print("piece_number")
-		print(piece_number)
-		input('Resume...')
+		# print(self.player.color, "move ", piece_number, ":", move)
 		board_move = np.zeros((96), dtype = 'int') # create output vector placeholder with zeros
 		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves from the board
 		if np.max(move) != 0: # there are legal moves
 			board_move[(piece_number * 8):((piece_number * 8) + 8)] = move # insert an 8 element vector of the moves for the chosen piece into the correct spot in the board move vector
 			move_array = board_legal_moves * board_move # generate an array that masks the board move with legal moves to determine whether the move is legal
 			while np.count_nonzero(move_array) == 0: # if there are all zeros, it's not legal
-				print("Checkers proposed illegal move!!")
+				# print("Checkers proposed illegal move!!")
 				board_move = np.zeros((96), dtype = 'int')
 				board_move[(piece_number * 8):((piece_number * 8) + 8)] = move
 				move_array = board_legal_moves * board_move
 			self.board.move_piece(self.player.color, piece_number, move) # move the piece on the board
 			self.player.increment_move_count()
+			# print(self.board.visual_state())
+			# print(self.board.pieces_out())
+			# input('Resume...')
 			#game_history.write(self.board.visual_state())
-			if np.max(move_array) == 2: # it was a jump
+			if np.max(move_array * self.board.jump_mask) == 1: # it was a jump
 				count = self.board.piece_count(color = self.player.other_color) # get the number of opposing pieces that are still left on the board
 				if count == 0: # that was the last piece
 					self.win = True
 					self.side = self.player.color
 				else: # it wasn't the last piece
-					if np.max(self.board.legal_piece_moves(color = self.player.color, piece_number = piece_number).flatten()) == 2:
+					if np.max((self.board.legal_piece_moves(color = self.player.color, piece_number = piece_number).flatten()) * np.array([1,1,0,0,0,0,1,1])) == 1:
 						self.jump_piece_number = piece_number
 					else:
 						self.jump_piece_number = None

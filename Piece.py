@@ -40,7 +40,7 @@ class Piece:
 		if self.in_play: # piece is still on the board
 			m[0:2, :] = np.append(self.forward_left(board), self.forward_right(board), axis=1) # update values for forward moves
 			if self.king:
-				m[2:4, :] = np.array([self.backward_left(board), self.backward_right(board)]) # update values for backward moves if piece is king
+				m[2:4, :] = np.append(self.backward_left(board), self.backward_right(board), axis = 1) # update values for backward moves if piece is king
 		return m
 
 	def jump_moves(self, board):
