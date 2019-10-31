@@ -12,8 +12,8 @@ class FCN_TF_p:
 		tf.compat.v1.reset_default_graph()
 		self.batch_num = 0
 		self.sess = tf.compat.v1.Session()
-		self.layers_dims = [397, 2048, 1024, 512, 256, 128, 96] #  6-layer model
-		self.learning_rate = 0.03
+		self.layers_dims = [397, 1024, 512, 256, 128, 96] #  5-layer model
+		self.learning_rate = 0.001
 		checkpoint = False
 		print("Initializing parameters...")
 		self.parameters = self.initialize_parameters_deep(self.layers_dims)
@@ -21,7 +21,7 @@ class FCN_TF_p:
 		self.X_m, self.Y_m, self.weights = self.create_placeholders(397, 96, 1)
 		self.AL_m, self.caches_m = self.L_model_forward(self.X_m, self.parameters)
 		self.cost = self.compute_cost_mean_square_error(self.AL_m, self.Y_m, self.weights)
-		self.optimizer = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
+		self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
 		self.init = tf.compat.v1.global_variables_initializer()
 		self.saver = tf.compat.v1.train.Saver()
 		available = self.check_for_params()
