@@ -13,7 +13,7 @@ class FCN_TF_p:
 		self.batch_num = 0
 		self.sess = tf.compat.v1.Session()
 		self.layers_dims = [397, 1024, 512, 256, 128, 64, 48] #  6-layer model
-		self.learning_rate = 0.03
+		self.learning_rate = 0.06
 		checkpoint = False
 		print("Initializing parameters...")
 		self.parameters = self.initialize_parameters_deep(self.layers_dims)
@@ -21,7 +21,7 @@ class FCN_TF_p:
 		self.X_m, self.Y_m, self.weights = self.create_placeholders(397, 48, 1)
 		self.AL_m, self.caches_m = self.L_model_forward(self.X_m, self.parameters)
 		self.cost = self.compute_cost_mean_square_error(self.AL_m, self.Y_m, self.weights)
-		self.optimizer = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
+		self.optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.cost)
 		self.init = tf.compat.v1.global_variables_initializer()
 		self.saver = tf.compat.v1.train.Saver()
 		available = self.check_for_params()
@@ -93,6 +93,7 @@ class FCN_TF_p:
 		print(self.sess.run(self.parameters["W1"]))
 
 	def plot_activations(self):
+		"""
 		plt.figure(2)
 		plt.ion()
 		plt.show()
@@ -117,6 +118,7 @@ class FCN_TF_p:
 		plt.show()
 		plt.hist(self.num_attempts_batch, bins=np.logspace(np.log10(1), np.log10(300), num=50))
 		plt.gca().set_xscale("log")
+		"""
 
 	def initialize_training_batch(self):
 		self.moves = []

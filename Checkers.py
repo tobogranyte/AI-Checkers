@@ -116,7 +116,7 @@ if input("Play game [Y/n]:") == "Y":
 		jump_rule = True
 	else:
 		jump_rule = False
-
+	"""
 	plt.figure(1, dpi=75, figsize=(16,16))
 	plt.ion()
 	ax1 = plt.subplot2grid((40, 1), (0, 0), colspan=2, rowspan=8)
@@ -139,7 +139,7 @@ if input("Play game [Y/n]:") == "Y":
 	ax4.set_xlabel('Games')
 	ax4.set_ylabel('Min/Max')
 	plt.show()
-
+	"""
 
 	while True:
 		red_game_set = []
@@ -169,21 +169,35 @@ if input("Play game [Y/n]:") == "Y":
 		black_attempts_parallel_batch = []
 		black_game_numbers_batch = []
 		red_game_numbers_batch = []
-
+		print('172' , done)
 		while not done:
+			print('174', done, end=' ')
 			red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_set))) # np array to hold X values for all games where it's a red move (column vector * number of red move games)
+			print('176', done, end=' ')
 			black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_set))) # np array to hold X values for all games where it's a black move (column vector * number of black move games)
+			print('178', done, end=' ')
 			red_Y_parallel = np.zeros((48, len(red_game_set)))
+			print('180', done, end=' ')
 			black_Y_parallel = np.zeros((48, len(black_game_set)))
+			print('182', done, end=' ')
 			red_mask_parallel = np.zeros((48, len(red_game_set)))
+			print('184', done, end=' ')
 			black_mask_parallel = np.zeros((48, len(black_game_set)))
+			print('186', done, end=' ')
 			red_moves_parallel = np.zeros((48, len(red_game_set)))
+			print('188', done, end=' ')
 			black_moves_parallel = np.zeros((48, len(black_game_set)))
+			print('190', done, end=' ')
 			red_attempts_parallel = np.zeros((1, len(red_game_set)))
+			print('192', done, end=' ')
 			black_attempts_parallel = np.zeros((1, len(black_game_set)))
+			print('194', done, end=' ')
 			black_game_numbers = np.zeros((1, len(black_game_set)))
+			print('196', done, end=' ')
 			red_game_numbers = np.zeros((1, len(red_game_set)))
+			print(len(red_game_set), end=' ')
 			for n, game in enumerate(red_game_set):
+				print(n, end=' ')
 				"""
 				Step through each game in the red training batch. For each game, get the input vector (X) from
 				the model and add it to the appropriate location in the red_X_batch.
@@ -306,6 +320,7 @@ if input("Play game [Y/n]:") == "Y":
 			min_hist5.append(minimums[5])
 			cost_hist.append(cost)
 			games_hist.append(games_total)
+			"""
 			if (params["trainings"] % plot_interval == 0) or params["trainings"] < 100:
 				#ax1.plot(games_hist, red_win_pct_hist, 'r-', games_hist, black_win_pct_hist, 'k-')
 				ax1.plot(games_hist, illegal_means, 'r-', games_hist, legal_means, 'g-')
@@ -325,6 +340,7 @@ if input("Play game [Y/n]:") == "Y":
 				ax4.plot(games_hist, min_hist5, 'k-')
 				plt.draw()
 				plt.pause(0.001)
+			"""
 			red_wins = 0
 			black_wins = 0
 			red_illegal_total = 0
@@ -333,4 +349,4 @@ if input("Play game [Y/n]:") == "Y":
 			black_move_total = 0
 			red_player.reset()
 			black_player.reset()
-
+			print('Done')
