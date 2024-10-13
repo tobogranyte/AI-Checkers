@@ -306,6 +306,7 @@ if input("Play game [Y/n]:") == "Y":
 			min_hist5.append(minimums[5])
 			cost_hist.append(cost)
 			games_hist.append(games_total)
+			print(params["trainings"])
 			if (params["trainings"] % plot_interval == 0) or params["trainings"] < 100:
 				#ax1.plot(games_hist, red_win_pct_hist, 'r-', games_hist, black_win_pct_hist, 'k-')
 				ax1.plot(games_hist, illegal_means, 'r-', games_hist, legal_means, 'g-')
