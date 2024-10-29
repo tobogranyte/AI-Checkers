@@ -12,13 +12,8 @@ class FCN_TF_p:
 		tf.compat.v1.reset_default_graph()
 		self.batch_num = 0
 		self.sess = tf.compat.v1.Session()
-<<<<<<< HEAD
 		self.layers_dims = [397, 1024, 512, 256, 128, 96] #  5-layer model
 		self.learning_rate = 0.001
-=======
-		self.layers_dims = [397, 1024, 512, 256, 128, 64, 48] #  6-layer model
-		self.learning_rate = 0.06
->>>>>>> tensorflow-2.0
 		checkpoint = False
 		print("Initializing parameters...")
 		self.parameters = self.initialize_parameters_deep(self.layers_dims)

@@ -175,28 +175,12 @@ if input("Play game [Y/n]:") == "Y":
 			red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_set))) # np array to hold X values for all games where it's a red move (column vector * number of red move games)
 			print('176', done, end=' ')
 			black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_set))) # np array to hold X values for all games where it's a black move (column vector * number of black move games)
-<<<<<<< HEAD
 			red_Y_parallel = np.zeros((96, len(red_game_set)))
 			black_Y_parallel = np.zeros((96, len(black_game_set)))
 			red_mask_parallel = np.zeros((96, len(red_game_set)))
 			black_mask_parallel = np.zeros((96, len(black_game_set)))
 			red_moves_parallel = np.zeros((96, len(red_game_set)))
 			black_moves_parallel = np.zeros((96, len(black_game_set)))
-=======
-			print('178', done, end=' ')
-			red_Y_parallel = np.zeros((48, len(red_game_set)))
-			print('180', done, end=' ')
-			black_Y_parallel = np.zeros((48, len(black_game_set)))
-			print('182', done, end=' ')
-			red_mask_parallel = np.zeros((48, len(red_game_set)))
-			print('184', done, end=' ')
-			black_mask_parallel = np.zeros((48, len(black_game_set)))
-			print('186', done, end=' ')
-			red_moves_parallel = np.zeros((48, len(red_game_set)))
-			print('188', done, end=' ')
-			black_moves_parallel = np.zeros((48, len(black_game_set)))
-			print('190', done, end=' ')
->>>>>>> tensorflow-2.0
 			red_attempts_parallel = np.zeros((1, len(red_game_set)))
 			print('192', done, end=' ')
 			black_attempts_parallel = np.zeros((1, len(black_game_set)))
@@ -329,11 +313,6 @@ if input("Play game [Y/n]:") == "Y":
 			#min_hist5.append(minimums[5])
 			cost_hist.append(cost)
 			games_hist.append(games_total)
-<<<<<<< HEAD
-			print(params["trainings"])
-=======
-			"""
->>>>>>> tensorflow-2.0
 			if (params["trainings"] % plot_interval == 0) or params["trainings"] < 100:
 				#ax1.plot(games_hist, red_win_pct_hist, 'r-', games_hist, black_win_pct_hist, 'k-')
 				ax1.plot(games_hist, illegal_means, 'r-', games_hist, legal_means, 'g-')
@@ -353,7 +332,6 @@ if input("Play game [Y/n]:") == "Y":
 				#ax4.plot(games_hist, min_hist5, 'k-')
 				plt.draw()
 				plt.pause(0.001)
-			"""
 			red_wins = 0
 			black_wins = 0
 			red_illegal_total = 0
@@ -362,4 +340,3 @@ if input("Play game [Y/n]:") == "Y":
 			black_move_total = 0
 			red_player.reset()
 			black_player.reset()
-			print('Done')
