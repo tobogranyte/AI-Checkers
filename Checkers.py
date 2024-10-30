@@ -150,7 +150,7 @@ if input("Play game [Y/n]:") == "Y":
 			games.append(game)
 			# append the game to the batch of games
 		for n, game in enumerate(games):
-			if game.start() == "Red": # game with a red move
+			if game.player_color() == "Red": # game with a red move
 				red_game_set.append(game) # append to list of games with red moves
 			else: #game with a black move
 				black_game_set.append(game) #append to list of games with black moves

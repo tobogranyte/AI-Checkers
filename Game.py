@@ -17,21 +17,6 @@ class Game:
 		self.number = number
 		self.attempts = 0
 		self.moves = 0
-
-	def start(self):
-		"""
-		THIS COMMENT IS ALL WRONG. THIS DOES NOT PLAY A GAME OF CHECKERS.
-		ALL IT DOES IS SET THE GAME UP. THIS SHOULD REALLY BE IN INIT.
-		BUT I DON'T WANT TO CHANGE IT NOW. IF I FIX ALL THE OTHER THINGS
-		I MAY CHANGE IT LATER.
-		Play a single game of checkers. Return the following parameters:
-		win -- True if game was won, False if stalemate
-		side -- color of player that won the game
-		self.board.piece_count("Red") -- number of pieces left on the red side
-		self.board.piece_count("Black") -- number of pieces left on the black side
-		self.red_player.move_count -- number of red
-		"""
-		#game_history = open('game_history.txt','w')
 		self.red_attempts = 0
 		self.red_moves = 0
 		self.black_attempts = 0
@@ -44,7 +29,6 @@ class Game:
 		else:
 			self.player = self.black_player
 
-		return self.player.color
 
 	def update_attempts_and_moves(self, attempts, color):
 		if color == "Red":
