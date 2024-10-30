@@ -148,7 +148,9 @@ if input("Play game [Y/n]:") == "Y":
 		done = False
 		for count in range(0,train_games): # create a batch-sized array of games and "start" each game
 			game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = count)
+			# create a game
 			games.append(game)
+			# append the game to the batch of games
 		for n, game in enumerate(games):
 			if game.start() == "Red": # game with a red move
 				red_game_set.append(game) # append to list of games with red moves
@@ -169,11 +171,8 @@ if input("Play game [Y/n]:") == "Y":
 		black_attempts_parallel_batch = []
 		black_game_numbers_batch = []
 		red_game_numbers_batch = []
-		print('172' , done)
 		while not done:
-			print('174', done, end=' ')
 			red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_set))) # np array to hold X values for all games where it's a red move (column vector * number of red move games)
-			print('176', done, end=' ')
 			black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_set))) # np array to hold X values for all games where it's a black move (column vector * number of black move games)
 			red_Y_parallel = np.zeros((96, len(red_game_set)))
 			black_Y_parallel = np.zeros((96, len(black_game_set)))
@@ -182,15 +181,10 @@ if input("Play game [Y/n]:") == "Y":
 			red_moves_parallel = np.zeros((96, len(red_game_set)))
 			black_moves_parallel = np.zeros((96, len(black_game_set)))
 			red_attempts_parallel = np.zeros((1, len(red_game_set)))
-			print('192', done, end=' ')
 			black_attempts_parallel = np.zeros((1, len(black_game_set)))
-			print('194', done, end=' ')
 			black_game_numbers = np.zeros((1, len(black_game_set)))
-			print('196', done, end=' ')
 			red_game_numbers = np.zeros((1, len(red_game_set)))
-			print(len(red_game_set), end=' ')
 			for n, game in enumerate(red_game_set):
-				print(n, end=' ')
 				"""
 				Step through each game in the red training batch. For each game, get the input vector (X) from
 				the model and add it to the appropriate location in the red_X_batch.

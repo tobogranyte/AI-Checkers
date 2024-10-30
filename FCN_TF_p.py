@@ -8,6 +8,11 @@ import tensorflow as tf
 class FCN_TF_p:
 
 	def __init__(self):
+		'''
+		Torch
+		I will probably keep a lot of this in altered form to initialize the torch version.
+		We'll see how much conversion or alteration is necessary.
+		'''
 		tf.compat.v1.disable_eager_execution()
 		tf.compat.v1.reset_default_graph()
 		self.batch_num = 0
@@ -80,6 +85,9 @@ class FCN_TF_p:
 		print(self.sess.run(self.parameters))
 
 	def rs(self):
+		"""
+		It appears this is never used.
+		"""
 		inc_p = self.parameters["W1"].assign(self.parameters["W1"] + 1)
 		self.sess.run(self.init)
 		# Do some work with the model.
@@ -156,6 +164,7 @@ class FCN_TF_p:
 		return available
 
 	def initialize_network_architecture_deep(self, layer_dims):
+		"""This appears to not be used anywhere"""
 		layers_dims = tf.constant(layer_dims, name='layers_dims')
 		print(layers_dims)
 
@@ -171,6 +180,8 @@ class FCN_TF_p:
 		parameters -- python dictionary containing your parameters "W1", "b1", ..., "WL", "bL":
 		                Wl -- weight matrix of shape (layer_dims[l], layer_dims[l-1])
 		                bl -- bias vector of shape (layer_dims[l], 1)
+
+		TORCH: I don't know if this sort of reference to discrete parameters will be necessary in a torch implementation
 		"""
 
 		parameters = {}

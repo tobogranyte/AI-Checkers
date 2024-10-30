@@ -20,6 +20,10 @@ class Game:
 
 	def start(self):
 		"""
+		THIS COMMENT IS ALL WRONG. THIS DOES NOT PLAY A GAME OF CHECKERS.
+		ALL IT DOES IS SET THE GAME UP. THIS SHOULD REALLY BE IN INIT.
+		BUT I DON'T WANT TO CHANGE IT NOW. IF I FIX ALL THE OTHER THINGS
+		I MAY CHANGE IT LATER.
 		Play a single game of checkers. Return the following parameters:
 		win -- True if game was won, False if stalemate
 		side -- color of player that won the game
