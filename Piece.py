@@ -87,9 +87,9 @@ class Piece:
 			if self.xPosition == 0: # leftmost position
 				return np.array([[0],[0]]) # can't move forward left
 			else: #not the leftmost position
-				c = board.color((self.yPosition + 1), (self.xPosition - 1), self.color) # color in forward left position
+				c = board.position_color((self.yPosition + 1), (self.xPosition - 1), self.color) # color in forward left position
 				if self.yPosition != 6: # can move up to two positions forward
-					c2 = board.color((self.yPosition + 2), (self.xPosition - 1), self.color) #color in forward left jump position
+					c2 = board.position_color((self.yPosition + 2), (self.xPosition - 1), self.color) #color in forward left jump position
 					if c  == self.color: # forward left occupied by same color (no moves available)
 						return np.array([[0],[0]])
 					elif c == "O": # forward left unoccupied
@@ -106,9 +106,9 @@ class Piece:
 		elif  self.yPosition == 7: # odd and last row
 			return np.array([[0],[0]]) # no possible forward moves
 		else: # not the last row
-			c = board.color((self.yPosition + 1), (self.xPosition), self.color)
+			c = board.position_color((self.yPosition + 1), (self.xPosition), self.color)
 			if self.xPosition != 0: # odd and not the leftmost position
-				c2 = board.color((self.yPosition + 2), (self.xPosition - 1), self.color)
+				c2 = board.position_color((self.yPosition + 2), (self.xPosition - 1), self.color)
 				if c  == self.color:  # forward left occupied by same color (no moves available)
 					return np.array([[0],[0]])
 				elif c == "O":  # forward left unoccupied
@@ -131,8 +131,8 @@ class Piece:
 				if self.xPosition == 3: # odd and rightmost position
 					return np.array([[0],[0]]) # can't move forward right
 				else: # odd and not the rightmost position
-					c = board.color((self.yPosition + 1), (self.xPosition + 1), self.color)
-					c2 = board.color((self.yPosition + 2), (self.xPosition + 1), self.color)
+					c = board.position_color((self.yPosition + 1), (self.xPosition + 1), self.color)
+					c2 = board.position_color((self.yPosition + 2), (self.xPosition + 1), self.color)
 					if c  == self.color:
 						return np.array([[0],[0]])
 					elif c == "O":
@@ -142,10 +142,10 @@ class Piece:
 					else:
 						return np.array([[0],[0]])
 		else: #even row
-			c = board.color((self.yPosition + 1), (self.xPosition), self.color)
+			c = board.position_color((self.yPosition + 1), (self.xPosition), self.color)
 			if self.xPosition != 3: # even and not rightmost position
 				if self.yPosition != 6: # can move up to two positions forward
-					c2 = board.color((self.yPosition + 2), (self.xPosition + 1), self.color)
+					c2 = board.position_color((self.yPosition + 2), (self.xPosition + 1), self.color)
 					if c  == self.color:
 						return np.array([[0],[0]])
 					elif c == "O":
@@ -173,8 +173,8 @@ class Piece:
 				if self.xPosition == 0: # leftmost position
 					return np.array([[0],[0]]) # can't move backward left
 				else: #not the leftmost position
-					c = board.color((self.yPosition - 1), (self.xPosition - 1), self.color) # color in backward left position
-					c2 = board.color((self.yPosition - 2), (self.xPosition - 1), self.color) #color in forward left jump position
+					c = board.position_color((self.yPosition - 1), (self.xPosition - 1), self.color) # color in backward left position
+					c2 = board.position_color((self.yPosition - 2), (self.xPosition - 1), self.color) #color in forward left jump position
 					if c  == self.color:
 						return np.array([[0],[0]])
 					elif c == "O":
@@ -184,10 +184,10 @@ class Piece:
 					else:
 						return np.array([[0],[0]])
 		else: # odd row
-			c = board.color((self.yPosition - 1), (self.xPosition), self.color)
+			c = board.position_color((self.yPosition - 1), (self.xPosition), self.color)
 			if self.xPosition != 0: # odd and not the leftmost position
 				if self.yPosition != 1: # can move up to two positions backward
-					c2 = board.color((self.yPosition - 2), (self.xPosition - 1), self.color)
+					c2 = board.position_color((self.yPosition - 2), (self.xPosition - 1), self.color)
 					if c  == self.color:
 						return np.array([[0],[0]])
 					elif c == "O":
@@ -212,9 +212,9 @@ class Piece:
 			if self.xPosition == 3: # odd and rightmost position
 				return np.array([[0],[0]]) # can't move backward right
 			else: # odd and not the rightmost position
-				c = board.color((self.yPosition - 1), (self.xPosition + 1), self.color)
+				c = board.position_color((self.yPosition - 1), (self.xPosition + 1), self.color)
 				if self.yPosition != 1: # odd and can move up to two positions backward 
-					c2 = board.color((self.yPosition - 2), (self.xPosition + 1), self.color)
+					c2 = board.position_color((self.yPosition - 2), (self.xPosition + 1), self.color)
 					if c  == self.color:
 						return np.array([[0],[0]])
 					elif c == "O":
@@ -231,9 +231,9 @@ class Piece:
 		else: # even row
 			if self.yPosition == 0: # first row
 				return np.array([[0],[0]])
-			c = board.color((self.yPosition - 1), (self.xPosition), self.color)
+			c = board.position_color((self.yPosition - 1), (self.xPosition), self.color)
 			if self.xPosition != 3: # even and not rightmost position
-				c2 = board.color((self.yPosition - 2), (self.xPosition + 1), self.color)
+				c2 = board.position_color((self.yPosition - 2), (self.xPosition + 1), self.color)
 				if c  == self.color:
 					return np.array([[0],[0]])
 				elif c == "O":

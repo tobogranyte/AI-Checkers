@@ -24,7 +24,7 @@ class Game:
 		self.stalemate = False
 		self.win = False
 		self.jump_piece_number = None
-		if np.random.uniform(0, 1) >= .5:
+		if np.random.uniform(0, 1) >= .5: # choose a starting player at random
 			self.player = self.red_player
 		else:
 			self.player = self.black_player

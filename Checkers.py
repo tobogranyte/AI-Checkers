@@ -146,7 +146,10 @@ if input("Play game [Y/n]:") == "Y":
 		done = False
 		for count in range(0,train_games): # create a batch-sized array of games and "start" each game
 			game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = count)
-			# create a game
+			"""
+			Create a game. This creates a game, setting all game parameters and also choosing the starting
+			player (red or black) at random.
+			"""
 			games.append(game)
 			# append the game to the batch of games
 		for n, game in enumerate(games):
@@ -172,10 +175,10 @@ if input("Play game [Y/n]:") == "Y":
 		while not done:
 			red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_set))) # np array to hold X values for all games where it's a red move (column vector * number of red move games)
 			black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_set))) # np array to hold X values for all games where it's a black move (column vector * number of black move games)
-			red_Y_parallel = np.zeros((96, len(red_game_set)))
+			red_Y_parallel = np.zeros((96, len(red_game_set))) # np array that holds the 
 			black_Y_parallel = np.zeros((96, len(black_game_set)))
-			red_mask_parallel = np.zeros((96, len(red_game_set)))
-			black_mask_parallel = np.zeros((96, len(black_game_set)))
+			red_mask_parallel = np.zeros((96, len(red_game_set))) # WHAT IS THE MASK??
+			black_mask_parallel = np.zeros((96, len(black_game_set))) # WHAT IS THE MASK??
 			red_moves_parallel = np.zeros((96, len(red_game_set)))
 			black_moves_parallel = np.zeros((96, len(black_game_set)))
 			red_attempts_parallel = np.zeros((1, len(red_game_set)))
@@ -191,8 +194,8 @@ if input("Play game [Y/n]:") == "Y":
 				X, Y, mask = game.generate_X_Y_mask()
 				red_X_parallel[:,n] = X
 				red_Y_parallel[:,n] = Y
-				red_mask_parallel[:,n] = mask
-				red_game_numbers[:,n] = game.number
+				red_mask_parallel[:,n] = mask # WHAT IS THE MASK??
+				red_game_numbers[:,n] = game.number # the game number in the batch of games being played
 			for n, game in enumerate(black_game_set):
 				"""
 				Step through each game in the black training batch. For each game, get the input vector (X) from

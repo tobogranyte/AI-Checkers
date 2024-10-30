@@ -67,7 +67,12 @@ class Board:
 			piece = self.black_piece
 		moves = np.zeros((96), dtype = 'int') # zero array to put the legal moves
 		if jump_piece_number: # this is the second, mandatory jump move after a first jump
-			moves[(jump_piece_number * 8):((jump_piece_number * 8) + 8)] = piece[jump_piece_number].jump_moves(self).flatten() # insert possible jump moves for the jump piece into the move array
+			moves[(jump_piece_number * 8):((jump_piece_number * 8) + 8)] = piece[jump_piece_number].jump_moves(self).flatten()
+			"""
+			If there is a jump piece, it means that this is the second move by this color, because the first was a jump.
+			Thus, the only legal move at this point is a jump. So it inserts the legal moves for this piece only into the
+			array. The rest will remain zeros.
+			"""
 		else:
 			for p in piece:
 				moves[(p.number * 8):((p.number * 8) + 8)] = p.legal_moves(self).flatten() # insert legal moves for the selected piece into the move array
@@ -249,7 +254,7 @@ class Board:
 		return piece_arrays
 
 	# return the color in a given x, y position from the vantage point of player
-	def color(self, y, x, player):
+	def position_color(self, y, x, player):
 		if (self.position(y, x, player)[0] == 1) or (self.position(y, x, player)[1] == 1):
 			return "Red"
 		elif (self.position(y, x, player)[2] == 1) or (self.position(y, x, player)[3] == 1):
