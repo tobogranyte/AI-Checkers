@@ -10,13 +10,13 @@ class Board:
 		self.jump_mask = np.array([1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1], dtype = 'int')
 
 	def setup(self): # set up all pieces in starting positions
-		self.red_piece = []
-		self.black_piece = []
+		self.red_pieces = []
+		self.black_pieces = []
 		for p in range (0,12):
-			self.red_piece.append(Piece(p, "Red", king = False, x = p%4, y = int(p/4), in_play = True))
-			self.place_piece(self.red_piece[p])
-			self.black_piece.append(Piece(p, "Black", king = False, x = p%4, y = int(p/4), in_play = True))
-			self.place_piece(self.black_piece[p])
+			self.red_pieces.append(Piece(p, "Red", king = False, x = p%4, y = int(p/4), in_play = True))
+			self.place_piece(self.red_pieces[p])
+			self.black_pieces.append(Piece(p, "Black", king = False, x = p%4, y = int(p/4), in_play = True))
+			self.place_piece(self.black_pieces[p])
 
 	def red_state(self): # return the objective board state
 		return self.state
@@ -30,10 +30,10 @@ class Board:
 	def get_piece_vector(self, color):
 		if color == 'Red':
 			numbers = self.red_numbers # red piece numbers for all board locations (red vantage point)
-			piece = self.red_piece				
+			piece = self.red_pieces				
 		else:
 			numbers = self.black_numbers # black
-			piece = self.black_piece
+			piece = self.black_pieces
 		v = np.zeros((396))
 		in_play = np.zeros((12))
 		eye = np.eye(12)
@@ -62,19 +62,19 @@ class Board:
 		# 0 = illegal, 1 = legal, 2 = legal jump
 		
 		if color == "Red":
-			piece = self.red_piece
+			pieces = self.red_pieces
 		else:
-			piece = self.black_piece
+			pieces = self.black_pieces
 		moves = np.zeros((96), dtype = 'int') # zero array to put the legal moves
 		if jump_piece_number: # this is the second, mandatory jump move after a first jump
-			moves[(jump_piece_number * 8):((jump_piece_number * 8) + 8)] = piece[jump_piece_number].jump_moves(self).flatten()
+			moves[(jump_piece_number * 8):((jump_piece_number * 8) + 8)] = pieces[jump_piece_number].jump_moves(self).flatten()
 			"""
 			If there is a jump piece, it means that this is the second move by this color, because the first was a jump.
 			Thus, the only legal move at this point is a jump. So it inserts the legal moves for this piece only into the
 			array. The rest will remain zeros.
 			"""
 		else:
-			for p in piece:
+			for p in pieces:
 				moves[(p.number * 8):((p.number * 8) + 8)] = p.legal_moves(self).flatten() # insert legal moves for the selected piece into the move array
 			if np.max(moves * self.jump_mask) == 1 and jump_rule: # a jump is available and a jump rule (requiring the player to use a jump if availabe) is in effect
 				moves = moves * self.jump_mask # mask only jump moves for legal moves
@@ -83,20 +83,20 @@ class Board:
 	def piece_count(self, color):
 		count = 0
 		if color == "Red":
-			piece = self.red_piece
+			pieces = self.red_pieces
 		else:
-			piece = self.black_piece
-		for p in piece:
+			pieces = self.black_pieces
+		for p in pieces:
 			if p.in_play == True:
 				count = count + 1
 		return count
 
 	def legal_piece_moves(self, color, piece_number):
 		if color == "Red":
-			piece = self.red_piece
+			pieces = self.red_pieces
 		else:
-			piece = self.black_piece
-		legal_moves = piece[piece_number].legal_moves(self)
+			pieces = self.black_pieces
+		legal_moves = pieces[piece_number].legal_moves(self)
 		return legal_moves
 
 	def black_numbers(self):
@@ -156,12 +156,12 @@ class Board:
 
 	def pieces_out(self):
 		print("B Out:", end='')
-		for p in self.black_piece:
+		for p in self.black_pieces:
 			if p.in_play == False:
 				print(p.number, end = ' ')
 		print()
 		print("R Out:", end='')
-		for p in self.red_piece:
+		for p in self.red_pieces:
 			if p.in_play == False:
 				print(p.number, end = ' ')
 		print()
@@ -199,14 +199,14 @@ class Board:
 	# move a piece from one position to another
 	def move_piece(self, color, number, move):
 		if color == "Red": # set the stage for a red move
-			piece = self.red_piece[number] # set the piece to move
-			opposition_piece = self.black_piece # set the opposition positions
+			piece = self.red_pieces[number] # set the piece to move
+			opposition_pieces = self.black_pieces # set the opposition positions
 			state = self.red_state() # set the opposition positions
 			numbers = self.red_numbers # set the array with all the red piece number positions
 			opposition_numbers = np.flip(np.flip(self.black_numbers, axis = 0), axis = 1) # set the opposition array with all the red piece number positions flipped
 		else: # set the stage for a black move
-			piece = self.black_piece[number] # set the stage for a red move
-			opposition_piece = self.red_piece # set the piece to move
+			piece = self.black_pieces[number] # set the stage for a red move
+			opposition_pieces = self.red_pieces # set the piece to move
 			state = self.black_state() # set the opposition positions
 			numbers = self.black_numbers # set the array with all the black piece number positions
 			opposition_numbers = np.flip(np.flip(self.red_numbers, axis = 0), axis = 1) # set the opposition array with all the red piece number positions flipped
@@ -225,8 +225,8 @@ class Board:
 		#                                                                               if m == 1 (only moving 1 row)
 		if m == 2:
 			opposition_number = opposition_numbers[7 - (piece.yPosition + int(y_offset / 2)), piece.xPosition + x1]
-			# print("Remove piece:", opposition_piece[opposition_number].color, opposition_number)
-			self.remove_piece(opposition_piece[opposition_number])
+			# print("Remove piece:", opposition_pieces[opposition_number].color, opposition_number)
+			self.remove_piece(opposition_pieces[opposition_number])
 		state[:, 7 - piece.yPosition, piece.xPosition] = np.zeros(4, dtype=int)
 		numbers[7 - piece.yPosition, piece.xPosition] = -1
 		piece.yPosition = yDest
@@ -247,10 +247,10 @@ class Board:
 		piece_arrays = np.zeros(384, int)
 		if color == "Red":
 			for p in range (12):
-				piece_arrays[32*p:32*(p+1)] = self.red_piece[p].spaces(self).flatten()
+				piece_arrays[32*p:32*(p+1)] = self.red_pieces[p].spaces(self).flatten()
 		else:
 			for p in range (12):
-				piece_arrays[32*p:32*(p+1)] = self.black_piece[p].spaces(self).flatten()
+				piece_arrays[32*p:32*(p+1)] = self.black_pieces[p].spaces(self).flatten()
 		return piece_arrays
 
 	# return the color in a given x, y position from the vantage point of player

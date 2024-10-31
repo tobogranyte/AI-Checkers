@@ -36,6 +36,13 @@ class Piece:
 		self.flattened_position[(7 - self.yPosition) * 4 + self.xPosition] = 1 # pretty sure I never use this
 
 	def legal_moves(self, board):
+		"""
+		Returns a [4,2] array in the following form:
+		[[0, 0], -> forward left: [0,0] = no move, [0,1] = unoccupied, [1,0] = jump unoccupied
+    	[ 0, 0], -> forward right: [0,0] = no move, [0,1] = unoccupied, [1,0] = jump unoccupied
+    	[ 4, 0], -> backward left: [0,0] = no move, [0,1] = unoccupied, [1,0] = jump unoccupied
+    	[ 6, 0]] -> backward right: [0,0] = no move, [0,1] = unoccupied, [1,0] = jump unoccupied
+		"""
 		m = np.zeros(8, dtype = int).reshape(4,2) # default 2x2 matrix is all zeros until a move is deterimined
 		if self.in_play: # piece is still on the board
 			m[0:2, :] = np.append(self.forward_left(board), self.forward_right(board), axis=1) # update values for forward moves
