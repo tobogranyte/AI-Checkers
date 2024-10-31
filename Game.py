@@ -110,17 +110,13 @@ class Game:
 	def generate_X_Y_mask(self):
 		X = self.player.model.get_input_vector(self.board, self.player.color, jump_piece_number = self.jump_piece_number)
 		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves (48,) for current board position (0: illegal, 1:legal, 2:jump-legal)
-		illegal_mask = np.zeros((96)) # create a holder (96,) for the illegal mask (starting filled with zeros)
-		illegal_mask[board_legal_moves != 0] = 1 # ones for anything that's legal
-		S = np.sum(illegal_mask, axis = 0) # sum of total legal moves
+		S = np.sum(board_legal_moves, axis = 0) # sum of total legal moves
 		if S == 0:
 			S = 1
-		# This seems to be forcing a 1 for the sum when there are no legal moves.
-		# But in the fullness of time I'm not sure why a situation with no legal moves would
-		# ever make it into the training set.
-		Y = illegal_mask / (S) # divide each move mask vector by S to get a unit normal label
+		# Can't have this be 0 because the next line divides by zero
+		Y = board_legal_moves / (S) # divide each move mask vector by S to get a unit normal label
 
-		return X, Y, illegal_mask
+		return X, Y, board_legal_moves
 
 
 	def static_playtest(self):
