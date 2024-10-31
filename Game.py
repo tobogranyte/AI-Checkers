@@ -110,7 +110,7 @@ class Game:
 	def generate_X_Y_mask(self):
 		X = self.player.model.get_input_vector(self.board, self.player.color, jump_piece_number = self.jump_piece_number)
 		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves (48,) for current board position (0: illegal, 1:legal, 2:jump-legal)
-		illegal_mask = np.zeros((96)) # create a holder (48,) for the illegal mask (starting filled with zeros)
+		illegal_mask = np.zeros((96)) # create a holder (96,) for the illegal mask (starting filled with zeros)
 		illegal_mask[board_legal_moves != 0] = 1 # ones for anything that's legal
 		S = np.sum(illegal_mask, axis = 0) # sum of total legal moves
 		if S == 0:
