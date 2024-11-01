@@ -101,7 +101,6 @@ class FCN_TF_p:
 		print(self.sess.run(self.parameters["W1"]))
 
 	def plot_activations(self):
-		"""
 		plt.figure(2)
 		plt.ion()
 		plt.show()
@@ -126,7 +125,6 @@ class FCN_TF_p:
 		plt.show()
 		plt.hist(self.num_attempts_batch, bins=np.logspace(np.log10(1), np.log10(300), num=50))
 		plt.gca().set_xscale("log")
-		"""
 
 	def initialize_training_batch(self):
 		self.moves = []
