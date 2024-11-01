@@ -173,12 +173,12 @@ if input("Play game [Y/n]:") == "Y":
 		black_game_numbers_batch = []
 		red_game_numbers_batch = []
 		while not done:
-			red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_set))) # np array to hold X values for all games where it's a red move (column vector * number of red move games)
-			black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_set))) # np array to hold X values for all games where it's a black move (column vector * number of black move games)
-			red_Y_parallel = np.zeros((96, len(red_game_set))) # np array that holds the 
-			black_Y_parallel = np.zeros((96, len(black_game_set)))
-			red_mask_parallel = np.zeros((96, len(red_game_set))) # WHAT IS THE MASK??
-			black_mask_parallel = np.zeros((96, len(black_game_set))) # WHAT IS THE MASK??
+			red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_set))) # X values for all games where it's a red move (column vector * number of red move games)
+			black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_set))) # X values for all games where it's a black move (column vector * number of black move games)
+			red_Y_parallel = np.zeros((96, len(red_game_set))) # unit normalized label
+			black_Y_parallel = np.zeros((96, len(black_game_set))) # unit normalized label
+			red_mask_parallel = np.zeros((96, len(red_game_set))) # non-normalized label
+			black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized label
 			red_moves_parallel = np.zeros((96, len(red_game_set)))
 			black_moves_parallel = np.zeros((96, len(black_game_set)))
 			red_attempts_parallel = np.zeros((1, len(red_game_set)))
@@ -192,9 +192,14 @@ if input("Play game [Y/n]:") == "Y":
 				Also for each game, get the Y (legal moves) and add it to the red_Y_batch.
 				"""
 				X, Y, mask = game.generate_X_Y_mask()
-				red_X_parallel[:,n] = X
-				red_Y_parallel[:,n] = Y
-				red_mask_parallel[:,n] = mask # WHAT IS THE MASK??
+				"""
+				X: (397) Input vector for the model
+				Y: (96) Unit normalized vector with illegal moves all zero and legal moves summing to 1
+				mask: (96) Illegal moves 0, Legal moves 1
+				"""
+				red_X_parallel[:,n] = X # insert X as a column to the parallel input
+				red_Y_parallel[:,n] = Y # insert Y as a column to the parallel unit normal label
+				red_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
 				red_game_numbers[:,n] = game.number # the game number in the batch of games being played
 			for n, game in enumerate(black_game_set):
 				"""

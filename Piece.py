@@ -38,10 +38,10 @@ class Piece:
 	def legal_moves(self, board):
 		"""
 		Returns a [4,2] array in the following form:
-		[[0, 0], -> forward left: [0,0] = no move, [0,1] = unoccupied, [1,0] = jump unoccupied
-    	[ 0, 0], -> forward right: [0,0] = no move, [0,1] = unoccupied, [1,0] = jump unoccupied
-    	[ 4, 0], -> backward left: [0,0] = no move, [0,1] = unoccupied, [1,0] = jump unoccupied
-    	[ 6, 0]] -> backward right: [0,0] = no move, [0,1] = unoccupied, [1,0] = jump unoccupied
+		[[0, 0], -> jump forward left, jump forward right
+    	[ 0, 0], -> move forward left, move forward right
+    	[ 0, 0], -> move backward left, move backward right
+    	[ 0, 0]] -> jump backward left, jump backward right
 		"""
 		m = np.zeros(8, dtype = int).reshape(4,2) # default 2x2 matrix is all zeros until a move is deterimined
 		if self.in_play: # piece is still on the board
@@ -51,6 +51,8 @@ class Piece:
 		return m
 
 	def jump_moves(self, board):
+		"""
+		Return only the jump rows (first and last rows) from legal moves. The rest are zeros."""
 		j = np.zeros(8, dtype = int).reshape(4,2)
 		m = self.legal_moves(board)
 		j[0,:] = m[0,:]
