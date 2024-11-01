@@ -1,5 +1,4 @@
 import numpy as np
-from utility_functions import sigmoid, sigmoid_backward, relu, relu_backward, softmax, softmax_backward, dictionary_to_vector, vector_to_dictionary, gradients_to_vector
 import pickle
 import matplotlib.pyplot as plt
 import os
