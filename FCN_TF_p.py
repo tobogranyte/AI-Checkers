@@ -268,7 +268,7 @@ class FCN_TF_p:
 
 		return one_hot_move, self.board_legal_moves
 
-	def parallel_predict(self, X, game_numbers):
+	def forward(self, X, game_numbers):
 		[self.AL, self.caches] = self.sess.run([self.AL_m, self.caches_m], feed_dict = {self.X_m: X})
 
 		return self.AL
@@ -291,11 +291,11 @@ class FCN_TF_p:
 	def train(self, Y, X, weights, illegal_masks):
 		params = {}
 		self.batch_num += 1
-#		masks = np.hstack(self.illegal_masks)
+		# masks = np.hstack(self.illegal_masks)
 
-#		Y = self.make_Y(np.hstack(self.probabilities_batch), masks) # use if only training on legal moves, not all moves
-#		Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
-#		X_batch = np.hstack(self.X_batch)
+		# Y = self.make_Y(np.hstack(self.probabilities_batch), masks) # use if only training on legal moves, not all moves
+		# Y = self.make_Y(np.hstack(self.attempts_probabilities), np.hstack(self.attempts_illegal_masks)) # use if training on all illegal attempts
+		# X_batch = np.hstack(self.X_batch)
 		print(X.shape)
 
 #		weights = np.hstack(self.num_attempts_batch)
