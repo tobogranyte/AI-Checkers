@@ -361,19 +361,6 @@ class FCN_TF_p:
 
 		return legal_mean, illegal_mean 
 
-
-	def make_Y(self, probs, masks):
-		Y = masks
-		# looks like Y should end up being masks
-		S = np.sum(Y, axis = 0) # sum of total legal moves
-		S[S == 0] = 1
-		# This seems to be forcing a 1 for the sum when there are no legal moves.
-		# But in the fullness of time I'm not sure why a situation with no legal moves would
-		# ever make it into the training set.
-		Y = Y / (S)
-
-		return Y
-
 	def get_input_vector(self, board, color, jump_piece_number):
 		v = board.get_piece_arrays(color)
 		# if color == 'Red':
