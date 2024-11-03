@@ -268,7 +268,7 @@ class FCN_TF_p:
 
 		return one_hot_move, self.board_legal_moves
 
-	def forward(self, X, game_numbers):
+	def forward(self, X, nograd = True):
 		[self.AL, self.caches] = self.sess.run([self.AL_m, self.caches_m], feed_dict = {self.X_m: X})
 
 		return self.AL
