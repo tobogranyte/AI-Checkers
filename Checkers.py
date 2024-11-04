@@ -212,7 +212,7 @@ if input("Play game [Y/n]:") == "Y":
 				black_Y_parallel[:,n] = Y
 				black_mask_parallel[:,n] = mask
 				black_game_numbers[:,n] = game.number
-			red_AL = red_model.forward(red_X_parallel, red_game_numbers) # get matrix of vector probabilities for the next move in all red games
+			red_AL = red_model.forward(red_X_parallel) # get matrix of vector probabilities for the next move in all red games
 			black_AL = black_model.forward(black_X_parallel, black_game_numbers) # get matrix of vector probabilities for the next move in all black games
 			# count up attempts to get to a legal move
 			# make the legal move
