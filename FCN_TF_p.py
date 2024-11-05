@@ -235,6 +235,12 @@ class FCN_TF_p:
 		return one_hot_move, piece_number, move
 
 	def train(self, Y, X, weights, illegal_masks):
+		"""
+		Y: parallel set of unit-normalized legal move vectors to calculate cost.
+		X: parallel set of input vectors.
+		weights: parallel set of number of attempts at a move to weight the cost.
+		illegal_masks: parallel set of non-normalized legal move vectors
+		"""
 		params = {}
 		self.batch_num += 1
 		# masks = np.hstack(self.illegal_masks)

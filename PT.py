@@ -77,16 +77,13 @@ class PT(nn.Module):
 			handle.remove()
 		self.hook_handles.clear()  # Clear the list after removal
 
-	def forward(self, x, nograd = True):
+	def forward(self, x):
 		x = self.convert(x)
 		x = x.to(self.device)
-		if nograd:
-			with torch.no_grad():
-				x = self.model(x)
-				x = self.deconvert(x)
-				return x
-		else:
-			return self.model(x)
+		with torch.no_grad():
+			x = self.model(x)
+			x = self.deconvert(x)
+		return x
 
 	def generate_move(self, AL): # generate a move from a probabilities vector
 		choice = np.squeeze(np.random.choice(96, 1, p=AL.flatten()/np.sum(AL.flatten()))) # roll the dice and p b
@@ -95,6 +92,24 @@ class PT(nn.Module):
 		move = one_hot_move[(8 * piece_number):((8 * piece_number) + 8)] # generate the move for that piece
 
 		return one_hot_move, piece_number, move
+
+	def train(self, y, x, weights, illegal_masks):
+		"""
+		y: parallel set of unit-normalized legal move vectors to calculate cost.
+		x: parallel set of input vectors.
+		weights: parallel set of number of attempts at a move to weight the cost.
+		illegal_masks: parallel set of non-normalized legal move vectors
+		"""
+		self.add_hooks()
+		self.batch_num += 1
+		x = self.convert(x)
+		x = x.to(self.device)
+		x = self.model(x)
+		cost = 
+
+
+
+
 
 	def _save_activation(self, name):
 		# Hook function to save activations

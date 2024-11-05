@@ -254,7 +254,7 @@ if input("Play game [Y/n]:") == "Y":
 						tally_and_print_stats(game)
 			red_X_parallel_batch.append(red_X_parallel)
 			black_X_parallel_batch.append(black_X_parallel)
-			red_Y_parallel_batch.append(red_Y_parallel)
+			red_Y_parallel_batch.append(red_Y_parallel) # Y is the unit normalized set of legal moves
 			black_Y_parallel_batch.append(black_Y_parallel)
 			red_mask_parallel_batch.append(red_mask_parallel)
 			black_mask_parallel_batch.append(black_mask_parallel)
