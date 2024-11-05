@@ -221,53 +221,6 @@ class FCN_TF_p:
 
 		return X, Y, weights
 
-	def move(self, board, color, jump_piece_number = None, jump_rule = True, illegal = False):
-		self.num_attempts += 1
-		if illegal == False: # everything within this sets up the stuff that won't change until a legal move is executed
-			#print('legal')
-			self.board_legal_moves = board.legal_moves(color = color, jump_piece_number = jump_piece_number, jump_rule = jump_rule) # get legal moves (48,) for current board position (0: illegal, 1:legal, 2:jump-legal)
-			self.illegal_mask = np.zeros((48)) # create a holder (48,) for the illegal mask (starting filled with zeros)
-			self.illegal_mask[self.board_legal_moves != 0] = 1 # ones for anything that's legal
-			self.illegal_mask = self.illegal_mask.reshape(self.illegal_mask.size, -1) # make into a column vector
-			self.X = self.get_input_vector(board, color, jump_piece_number = jump_piece_number) # create the input vector
-			#self.AL, caches = self.L_model_forward(self.X, self.parameters) # run forward prop
-			[self.AL, self.caches] = self.sess.run([self.AL_m, self.caches_m], feed_dict = {self.X_m: self.X})
-			self.AL_forsort = np.append(self.AL, np.arange(self.AL.shape[0], dtype = 'int').reshape(self.AL.shape[0], 1), axis = 1)
-		if self.move_type == "R":
-			move = np.squeeze(np.random.choice(48, 1, p=self.AL.flatten()/np.sum(self.AL.flatten()))) # roll the dice and pick a move from the output probs
-		elif self.num_attempts <= self.AL.size:
-			move = int(self.AL_forsort[np.argsort(self.AL_forsort[:,0], axis = 0), :][(self.AL.size - self.num_attempts), 1])
-			#print(self.num_attempts, self.AL_forsort[np.argsort(self.AL_forsort[:,0], axis = 0), :][(self.AL.size - self.num_attempts), :])
-		else:
-			move = 0
-		one_hot_move = np.eye(48, dtype = 'int')[move] # turn it into a one-hot vector
-		self.new_move = one_hot_move.reshape(one_hot_move.size, -1) # make it into a column vector
-
-		"""
-		This block adds a training example (moves, probs, inputs and masks) for every attempt, not just successful attempts.
-		This is not what you'd want to use for training anything but learning to make legal moves.
-		new_move: this is the move that was attempted
-		"""
-#		self.attempts.append(new_move) # append the attempted move to the list of attempts
-#		self.attempts_probabilities.append(self.AL) # append the probabilities to the list of probs . It will append the same thing for every attempt (lots of repeats).
-#		self.attempts_X_batch.append(self.X) # append the input vector. It will append the same thing for every attempt (lots of repeats).
-#		self.attempts_illegal_masks.append(self.illegal_mask) # append the illegal mask. It will append the same thing for every attempt (lots of repeats).
-
-		"""
-		This block creates the same basic set of data, but only for each successful move. Not necessary if the above block is being used
-		"""
-
-		if illegal == False:
-			self.moves.append(self.new_move)
-			self.probabilities_batch.append(self.AL)
-			self.X_batch.append(self.X)
-			self.illegal_masks.append(self.illegal_mask)
-			self.num_attempts_batch.append(self.num_attempts)
-		else:
-			self.moves[-1] = self.new_move
-
-		return one_hot_move, self.board_legal_moves
-
 	def forward(self, X, nograd = True):
 		[self.AL, self.caches] = self.sess.run([self.AL_m, self.caches_m], feed_dict = {self.X_m: X})
 
