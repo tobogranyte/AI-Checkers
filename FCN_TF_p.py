@@ -234,13 +234,6 @@ class FCN_TF_p:
 
 		return one_hot_move, piece_number, move
 
-	def complete_move(self):
-		self.moves[-1] = self.new_move
-		self.num_attempts_batch[-1] = self.num_attempts
-		self.num_attempts = 0
-
-
-
 	def train(self, Y, X, weights, illegal_masks):
 		params = {}
 		self.batch_num += 1

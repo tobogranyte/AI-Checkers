@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import os
 
-class Network(nn.Module):
+class PT(nn.Module):
 
 	def __init__(self):
 		super().__init__()
@@ -87,6 +87,14 @@ class Network(nn.Module):
 		else:
 			return self.model(x)
 
+	def generate_move(self, AL): # generate a move from a probabilities vector
+		choice = np.squeeze(np.random.choice(96, 1, p=AL.flatten()/np.sum(AL.flatten()))) # roll the dice and p b
+		one_hot_move = np.eye(96, dtype = 'int')[choice] #generate one-hot version
+		piece_number = int(np.argmax(one_hot_move)/8) # get the piece number that the move applies to
+		move = one_hot_move[(8 * piece_number):((8 * piece_number) + 8)] # generate the move for that piece
+
+		return one_hot_move, piece_number, move
+
 	def _save_activation(self, name):
 		# Hook function to save activations
 		def hook(model, input, output):
@@ -130,10 +138,29 @@ class Network(nn.Module):
 
 	def load_checkpoint(self, name):
 		try:
-			self.model.load_state_dict(torch.load('Torch/' + name + '.pth"))
+			self.model.load_state_dict(torch.load('Torch/' + name + '.pth'))
 		except (OSError, IOError) as e:
 			checkpoint = False
 			print("Can't find that checkpoint...")
 		if checkpoint != False:
 			print("Checkpoint " + name + ".pth loaded!")
 		return checkpoint
+
+	def get_input_vector(self, board, color, jump_piece_number):
+		v = board.get_piece_arrays(color)
+		# if color == 'Red':
+			# v = board.red_home_view().flatten() # get the board state 
+		# else:
+			# v = board.black_home_view().flatten()
+		# v = np.append(v, board.get_piece_vector(color))
+		if jump_piece_number != None:
+			j_vector = np.eye(12)[jump_piece_number]
+			jump = np.array([1])
+		else:
+			j_vector = np.zeros((12))
+			jump = np.array([0])
+		v = np.append(v, j_vector)
+		v = np.append(v, jump)	
+		return v
+
+
