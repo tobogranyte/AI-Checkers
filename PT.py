@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import os
+import numpy as np
 
 class PT(nn.Module):
 
@@ -109,7 +110,7 @@ class PT(nn.Module):
 		if x.requires_grad:
 			x = x.transpose(0,1).detach().numpy().astype(np.float64)
 		else:
-			x = x.transpose(0,1).numpy().astype(np.float64)
+			x = x.transpose(0,1).cpu().numpy().astype(np.float64)
 		return x
 
 	def initialize_training_batch(self):
