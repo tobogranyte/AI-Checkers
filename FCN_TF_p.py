@@ -221,7 +221,7 @@ class FCN_TF_p:
 
 		return X, Y, weights
 
-	def forward(self, X, nograd = True):
+	def forward_pass(self, X, nograd = True):
 		[self.AL, self.caches] = self.sess.run([self.AL_m, self.caches_m], feed_dict = {self.X_m: X})
 
 		return self.AL
@@ -234,7 +234,7 @@ class FCN_TF_p:
 
 		return one_hot_move, piece_number, move
 
-	def train(self, Y, X, weights, illegal_masks):
+	def train_model(self, Y, X, weights, illegal_masks):
 		"""
 		Y: parallel set of unit-normalized legal move vectors to calculate cost.
 		X: parallel set of input vectors.

@@ -212,8 +212,8 @@ if input("Play game [Y/n]:") == "Y":
 				black_Y_parallel[:,n] = Y
 				black_mask_parallel[:,n] = mask
 				black_game_numbers[:,n] = game.number
-			red_AL = red_model.forward(red_X_parallel) # get matrix of vector probabilities for the next move in all red games
-			black_AL = black_model.forward(black_X_parallel, black_game_numbers) # get matrix of vector probabilities for the next move in all black games
+			red_AL = red_model.forward_pass(red_X_parallel) # get matrix of vector probabilities for the next move in all red games
+			black_AL = black_model.forward_pass(black_X_parallel, black_game_numbers) # get matrix of vector probabilities for the next move in all black games
 			# count up attempts to get to a legal move
 			# make the legal move
 			for n, game in enumerate(red_game_set):
@@ -285,7 +285,7 @@ if input("Play game [Y/n]:") == "Y":
 			else:
 				if train_red == "Y":
 					print("Training Red...")
-					cost, params = red_model.train(Y = np.hstack(red_Y_parallel_batch), X = np.hstack(red_X_parallel_batch), weights = np.hstack(red_attempts_parallel_batch), illegal_masks = np.hstack(red_mask_parallel_batch))
+					cost, params = red_model.train_model(Y = np.hstack(red_Y_parallel_batch), X = np.hstack(red_X_parallel_batch), weights = np.hstack(red_attempts_parallel_batch), illegal_masks = np.hstack(red_mask_parallel_batch))
 					illegal_means = params["illegal_means"]
 					legal_means = params["legal_means"]
 					minimums = params["mins"]

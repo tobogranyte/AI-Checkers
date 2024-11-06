@@ -20,6 +20,7 @@ class PT(nn.Module):
 		layers.append(nn.Linear(self.layers_dims[n+1], self.layers_dims[n+2]))
 		layers.append(nn.Softmax(dim=1))
 		self.model = nn.Sequential(*layers)
+		optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
 		available = self.check_for_params()
 		if available:
 			if input("Start from saved?") == "Y":
@@ -77,12 +78,16 @@ class PT(nn.Module):
 			handle.remove()
 		self.hook_handles.clear()  # Clear the list after removal
 
-	def forward(self, x):
+	def forward_pass(self, x):
 		x = self.convert(x)
 		x = x.to(self.device)
 		with torch.no_grad():
-			x = self.model(x)
-			x = self.deconvert(x)
+			x = self(x)
+		x = self.deconvert(x)
+		return x
+
+	def forward(self, x, y=None):
+		x = self.model(x)
 		return x
 
 	def generate_move(self, AL): # generate a move from a probabilities vector
@@ -93,19 +98,31 @@ class PT(nn.Module):
 
 		return one_hot_move, piece_number, move
 
-	def train(self, y, x, weights, illegal_masks):
+	def train_model(self, y, x, weights, illegal_masks):
 		"""
 		y: parallel set of unit-normalized legal move vectors to calculate cost.
 		x: parallel set of input vectors.
 		weights: parallel set of number of attempts at a move to weight the cost.
 		illegal_masks: parallel set of non-normalized legal move vectors
 		"""
+		params = {}
 		self.add_hooks()
 		self.batch_num += 1
 		x = self.convert(x)
 		x = x.to(self.device)
-		x = self.model(x)
-		cost = 
+		y = self.convert(y)
+		y = y.to(self.device)
+		weights = self.convert(weights)
+		weights = weights.to(self.device)
+		x = self(x)
+		cost = ((y - x) ** 2) * weights
+		cost = cost.mean()
+		self.optimizer.zero_grad(set_to_none=True)
+		cost.backward()
+		self.optimizer.step()
+
+
+		return cost, params
 
 
 
