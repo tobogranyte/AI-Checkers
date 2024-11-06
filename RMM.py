@@ -14,7 +14,7 @@ class RMM:
 
 		return one_hot_move, self.board_legal_moves
 
-	def forward(self, X, game_numbers):
+	def forward_pass(self, X, game_numbers):
 		"""
 		in a functioning model, this would generate a matrix of probabilities. For this random number generating "model"
 		it will just return a zeros matrix of the correct dimensions that will later be filled (in generate_move) with one_hot
