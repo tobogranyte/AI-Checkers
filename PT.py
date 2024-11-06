@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
 import os
 import numpy as np
 
@@ -120,29 +121,69 @@ class PT(nn.Module):
 		self.optimizer.zero_grad(set_to_none=True)
 		cost.backward()
 		self.optimizer.step()
+		self.relu_activations = self.get_relu_activations()
+		L = len(self.relu_activations)
+		mins = []
+		maxes = []
+		for l in reversed(range(L)):
+			mins.append(np.amin(self.relu_activations[l]))
+			maxes.append(np.amax(self.relu_activations[l]))
+		self.trainings += 1
+		self.plot_activations()
+		legal_mean, illegal_mean = self.get_means(x, illegal_masks) # use if only training on legal moves, not all moves
 
+		self.legal_means.append(legal_mean)
+		self.illegal_means.append(illegal_mean)
+
+		params["illegal_means"] = self.illegal_means
+		params["legal_means"] = self.legal_means
+		params["trainings"] = self.trainings
+		params["mins"] = mins
+		params["maxes"] = maxes
+
+		self.initialize_training_batch()
 
 		return cost, params
 
-
-
-
-
 	def _save_activation(self, name):
 		# Hook function to save activations
-		def hook(model, input, output):
-			self.activations[name] = output.detach().cpu()
+		def hook(module, input, output):
+			layer_type = type(module).__name__
+			activation_name = f"{name}_{layer_type}"
+			self.activations[activation_name] = output.detach().cpu()
+			self.relu_activations = self.get_relu_activations()
 		return hook
+
+	def get_relu_activations(self):
+		return [activation.numpy() for name, activation in self.activations.items() if '_ReLU' in name]
 
 	def convert(self, x):
 		x = torch.from_numpy(np.array(x, dtype=np.float32)).transpose(0,1)
 		return x
 
+	def plot_activations(self):
+		plt.figure(2)
+		plt.ion()
+		plt.show()
+		L = len(self.relu_activations)
+		for l in reversed(range(L)):
+			sp = 100 + (10 * (L)) + (l + 1)
+			plt.subplot(sp)
+			plt.hist(self.relu_activations[l])
+		plt.draw()
+		plt.pause(0.001)
+#		plt.figure(3)
+#		plt.ion()
+#		plt.show()
+#		plt.hist(self.AL)
+		plt.figure(4)
+		plt.ion()
+		plt.show()
+		plt.hist(self.num_attempts_batch, bins=np.logspace(np.log10(1), np.log10(300), num=50))
+		plt.gca().set_xscale("log")
+
 	def deconvert(self, x):
-		if x.requires_grad:
-			x = x.transpose(0,1).detach().numpy().astype(np.float64)
-		else:
-			x = x.transpose(0,1).cpu().numpy().astype(np.float64)
+		x = x.transpose(0,1).detach().cpu().numpy().astype(np.float64)
 		return x
 
 	def initialize_training_batch(self):
