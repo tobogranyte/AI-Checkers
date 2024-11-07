@@ -18,6 +18,7 @@ class PT(nn.Module):
 		for n in range(len(self.layers_dims) - 2):
 			layers.append(nn.Linear(self.layers_dims[n], self.layers_dims[n+1]))
 			layers.append(nn.ReLU())
+			layers.append(nn.LayerNorm(self.layers_dims[n+1]))
 		layers.append(nn.Linear(self.layers_dims[n+1], self.layers_dims[n+2]))
 		layers.append(nn.Softmax(dim=1))
 		self.model = nn.Sequential(*layers)
