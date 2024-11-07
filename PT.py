@@ -2,27 +2,30 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import os
+import random
 import numpy as np
 
 class PT(nn.Module):
 
 	def __init__(self):
 		super().__init__()
+		self.set_seed(42)
 		self.batch_num = 0
 		self.layers_dims = [397, 1024, 512, 256, 128, 96] #  5-layer model
-		self.learning_rate = 0.001
+		self.learning_rate = 0.0001
 		checkpoint = False
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		print(self.device)
 		layers = []
 		for n in range(len(self.layers_dims) - 2):
 			layers.append(nn.Linear(self.layers_dims[n], self.layers_dims[n+1]))
-			layers.append(nn.ReLU())
 			layers.append(nn.LayerNorm(self.layers_dims[n+1]))
+			layers.append(nn.ReLU())
 		layers.append(nn.Linear(self.layers_dims[n+1], self.layers_dims[n+2]))
 		layers.append(nn.Softmax(dim=1))
 		self.model = nn.Sequential(*layers)
 		self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
+		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=50, gamma=1)
 		available = self.check_for_params()
 		if available:
 			if input("Start from saved?") == "Y":
@@ -42,25 +45,31 @@ class PT(nn.Module):
 							print("Using initialized parameters.")
 				else:
 					print("Using initialized parameters.")
+					self.apply(self._init_weights)
 		else:
 			print("Using initialized parameters.")
 		if input("Dice roll or maximize?") == "M":
 			self.move_type = "M"
 		else:
 			self.move_type = "R"
-#		if input("Gradient check?") == "Y":
-#			self.plot_activations()
-#			self.check_gradients()
-#			input("Paused.")
+	#		if input("Gradient check?") == "Y":
+	#			self.plot_activations()
+	#			self.check_gradients()
+	#			input("Paused.")
 		self.initialize_training_batch()
 		self.legal_means = []
 		self.illegal_means = []
 		self.trainings = 0
-		self.apply(self._init_weights)
 		self.activations = {}  # Dictionary to store activations
 		self.hook_handles = []  # List to store hook handles
 		self.model = self.model.to(self.device)
 
+	def set_seed(self, seed=42):
+		random.seed(seed)
+		np.random.seed(seed)
+		torch.manual_seed(seed)
+		if torch.cuda.is_available():
+			torch.cuda.manual_seed_all(seed)
 
 	def _init_weights(self, module):
 		if isinstance(module, nn.Linear):
@@ -83,6 +92,7 @@ class PT(nn.Module):
 	def forward_pass(self, x):
 		x = self.convert(x)
 		x = x.to(self.device)
+		self.model.eval()
 		with torch.no_grad():
 			x = self(x)
 		x = self.deconvert(x)
@@ -107,6 +117,7 @@ class PT(nn.Module):
 		weights: parallel set of number of attempts at a move to weight the cost.
 		illegal_masks: parallel set of non-normalized legal move vectors
 		"""
+		self.model.train()
 		params = {}
 		self.add_hooks()
 		self.batch_num += 1
@@ -114,23 +125,34 @@ class PT(nn.Module):
 		X = X.to(self.device)
 		Y = self.convert(Y)
 		Y = Y.to(self.device)
+		illegal_masks_t = self.convert(illegal_masks)
+		illegal_masks_t = illegal_masks_t.to(self.device)
+		print(illegal_masks_t[0])
 		weights = self.convert(weights)
 		weights = weights.to(self.device)
 		X = self(X)
-		cost = ((Y - X) ** 2) * weights
-		cost = cost.mean()
+		# cost = ((Y - X) ** 2) * weights
+		# cost = cost.mean()
+		weighted_log_prob = torch.log(X) * weights
+		cost = - weighted_log_prob[illegal_masks_t == 1]
+		cost = cost.sum()
 		self.optimizer.zero_grad(set_to_none=True)
 		cost.backward()
 		self.optimizer.step()
+
 		self.relu_activations = self.get_relu_activations()
 		self.save_weights()
 		L = len(self.weights)
 		mins = []
 		maxes = []
 		for l in reversed(range(L)):
+			print(f'layer {l} max: {np.amax(self.weights[l])}')
+			print(f'layer {l} min: {np.amin(self.weights[l])}')
 			mins.append(np.amin(self.weights[l]))
 			maxes.append(np.amax(self.weights[l]))
 		self.trainings += 1
+		self.scheduler.step()
+		print("Training batch {}: Current learning rate: {:.6f}".format(self.trainings, self.optimizer.param_groups[0]['lr']))
 		# self.plot_activations()
 		legal_mean, illegal_mean = self.get_means(X, illegal_masks) # use if only training on legal moves, not all moves
 
@@ -144,6 +166,8 @@ class PT(nn.Module):
 		params["maxes"] = maxes
 
 		self.initialize_training_batch()
+		print(torch.cuda.memory_allocated())
+		
 		return cost.detach().cpu().numpy().astype(np.float64), params
 
 	def get_means(self, X, illegal_masks):
@@ -160,13 +184,13 @@ class PT(nn.Module):
 			activation_name = f"{name}_{layer_type}"
 			self.activations[activation_name] = output.detach().cpu()
 		return hook
-	
+
 	def save_weights(self):
 		self.weights = []
-		for name, param in self.named_parameters():
-			if 'weight' in name:  # Only capture weights, not biases
-				self.weights.append(param.detach().cpu().numpy())
-
+		for layer in self.model:
+			# Check if the layer is an instance of nn.Linear
+			if isinstance(layer, nn.Linear):
+				self.weights.append(layer.weight.detach().cpu().numpy())
 				
 
 
@@ -191,10 +215,10 @@ class PT(nn.Module):
 			plt.hist(self.weights[l])
 		plt.draw()
 		plt.pause(0.001)
-#		plt.figure(3)
-#		plt.ion()
-#		plt.show()
-#		plt.hist(self.AL)
+	#		plt.figure(3)
+	#		plt.ion()
+	#		plt.show()
+	#		plt.hist(self.AL)
 		plt.figure(4)
 		plt.ion()
 		plt.show()
