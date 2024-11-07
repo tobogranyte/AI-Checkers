@@ -106,12 +106,13 @@ class FCN_TF_p:
 		g_norm = np.random.normal(scale = 1, size = self.layers_dims[0]).reshape(self.layers_dims[0],1)
 		print(g_norm.shape)
 		caches = self.sess.run(self.caches_m, feed_dict = {self.X_m: g_norm})
-		print(caches)
-		input('pause')
 		Y = np.zeros((48,1))
 		L = len(caches)
+		print(L)
 		for l in reversed(range(L)):
+			print(l)
 			sp = 100 + (10 * (L)) + (l + 1)
+			print(sp)
 			plt.subplot(sp)
 			linear_cache, activation_cache = caches[l]
 			plt.hist(activation_cache)

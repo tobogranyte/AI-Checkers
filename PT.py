@@ -21,7 +21,7 @@ class PT(nn.Module):
 		layers.append(nn.Linear(self.layers_dims[n+1], self.layers_dims[n+2]))
 		layers.append(nn.Softmax(dim=1))
 		self.model = nn.Sequential(*layers)
-		optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
+		self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
 		available = self.check_for_params()
 		if available:
 			if input("Start from saved?") == "Y":
@@ -99,7 +99,7 @@ class PT(nn.Module):
 
 		return one_hot_move, piece_number, move
 
-	def train_model(self, y, x, weights, illegal_masks):
+	def train_model(self, Y, X, weights, illegal_masks):
 		"""
 		y: parallel set of unit-normalized legal move vectors to calculate cost.
 		x: parallel set of input vectors.
@@ -109,28 +109,29 @@ class PT(nn.Module):
 		params = {}
 		self.add_hooks()
 		self.batch_num += 1
-		x = self.convert(x)
-		x = x.to(self.device)
-		y = self.convert(y)
-		y = y.to(self.device)
+		X = self.convert(X)
+		X = X.to(self.device)
+		Y = self.convert(Y)
+		Y = Y.to(self.device)
 		weights = self.convert(weights)
 		weights = weights.to(self.device)
-		x = self(x)
-		cost = ((y - x) ** 2) * weights
+		X = self(X)
+		cost = ((Y - X) ** 2) * weights
 		cost = cost.mean()
 		self.optimizer.zero_grad(set_to_none=True)
 		cost.backward()
 		self.optimizer.step()
 		self.relu_activations = self.get_relu_activations()
-		L = len(self.relu_activations)
+		self.save_weights()
+		L = len(self.weights)
 		mins = []
 		maxes = []
 		for l in reversed(range(L)):
-			mins.append(np.amin(self.relu_activations[l]))
-			maxes.append(np.amax(self.relu_activations[l]))
+			mins.append(np.amin(self.weights[l]))
+			maxes.append(np.amax(self.weights[l]))
 		self.trainings += 1
-		self.plot_activations()
-		legal_mean, illegal_mean = self.get_means(x, illegal_masks) # use if only training on legal moves, not all moves
+		# self.plot_activations()
+		legal_mean, illegal_mean = self.get_means(X, illegal_masks) # use if only training on legal moves, not all moves
 
 		self.legal_means.append(legal_mean)
 		self.illegal_means.append(illegal_mean)
@@ -142,8 +143,14 @@ class PT(nn.Module):
 		params["maxes"] = maxes
 
 		self.initialize_training_batch()
+		return cost.detach().cpu().numpy().astype(np.float64), params
 
-		return cost, params
+	def get_means(self, X, illegal_masks):
+		X = self.deconvert(X)
+		legal_mean = np.sum(X * illegal_masks)/np.count_nonzero(illegal_masks)
+		illegal_mean = np.sum(X * (1 - illegal_masks))/np.count_nonzero(1 - illegal_masks)
+
+		return legal_mean, illegal_mean 
 
 	def _save_activation(self, name):
 		# Hook function to save activations
@@ -151,11 +158,19 @@ class PT(nn.Module):
 			layer_type = type(module).__name__
 			activation_name = f"{name}_{layer_type}"
 			self.activations[activation_name] = output.detach().cpu()
-			self.relu_activations = self.get_relu_activations()
 		return hook
+	
+	def save_weights(self):
+		self.weights = []
+		for name, param in self.named_parameters():
+			if 'weight' in name:  # Only capture weights, not biases
+				self.weights.append(param.detach().cpu().numpy())
+
+				
+
 
 	def get_relu_activations(self):
-		return [activation.numpy() for name, activation in self.activations.items() if '_ReLU' in name]
+		return [activation.numpy() for name, activation in self.activations.items() if ('_ReLU' in name) or ('_Softmax' in name)]
 
 	def convert(self, x):
 		x = torch.from_numpy(np.array(x, dtype=np.float32)).transpose(0,1)
@@ -165,11 +180,14 @@ class PT(nn.Module):
 		plt.figure(2)
 		plt.ion()
 		plt.show()
-		L = len(self.relu_activations)
+		L = len(self.weights)
+		print(L)
 		for l in reversed(range(L)):
+			print(l)
 			sp = 100 + (10 * (L)) + (l + 1)
+			print(sp)
 			plt.subplot(sp)
-			plt.hist(self.relu_activations[l])
+			plt.hist(self.weights[l])
 		plt.draw()
 		plt.pause(0.001)
 #		plt.figure(3)
