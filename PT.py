@@ -12,7 +12,7 @@ class PT(nn.Module):
 		self.set_seed(42)
 		self.batch_num = 0
 		self.layers_dims = [397, 1024, 512, 256, 128, 96] #  5-layer model
-		self.learning_rate = 0.0001
+		self.learning_rate = 0.001
 		checkpoint = False
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		print(self.device)
@@ -25,7 +25,7 @@ class PT(nn.Module):
 		layers.append(nn.Softmax(dim=1))
 		self.model = nn.Sequential(*layers)
 		self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
-		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=50, gamma=1)
+		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=50, gamma=0.5)
 		available = self.check_for_params()
 		if available:
 			if input("Start from saved?") == "Y":
@@ -156,11 +156,11 @@ class PT(nn.Module):
 		# self.plot_activations()
 		legal_mean, illegal_mean = self.get_means(X, illegal_masks) # use if only training on legal moves, not all moves
 
-		self.legal_means.append(legal_mean)
-		self.illegal_means.append(illegal_mean)
+		#self.legal_means.append(legal_mean)
+		#self.illegal_means.append(illegal_mean)
 
-		params["illegal_means"] = self.illegal_means
-		params["legal_means"] = self.legal_means
+		params["illegal_mean"] = illegal_mean
+		params["legal_mean"] = legal_mean
 		params["trainings"] = self.trainings
 		params["mins"] = mins
 		params["maxes"] = maxes

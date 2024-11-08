@@ -28,22 +28,6 @@ red_win_pct_hist = []
 black_win_pct_hist = []
 red_illegal_pct_hist = []
 black_illegal_pct_hist = []
-max_hist0 = []
-max_hist1 = []
-max_hist2 = []
-max_hist3 = []
-max_hist4 = []
-max_hist5 = []
-max_hist6 = []
-min_hist0 = []
-min_hist1 = []
-min_hist2 = []
-min_hist3 = []
-min_hist4 = []
-min_hist5 = []
-min_hist6 = []
-games_hist = []
-cost_hist = []
 params = {}
 
 def tally_and_print_stats(game):
@@ -78,6 +62,37 @@ def tally_and_print_stats(game):
 	red_win_pct = (red_wins * 100)/(red_wins + black_wins)
 	black_win_pct = (black_wins * 100)/(red_wins + black_wins)
 	print("%8d" % game.number, p_side, "%.2f" % red_illegal_pct, "%.2f" % black_illegal_pct, "%.2f" % red_win_pct, "%.2f" % black_win_pct)
+
+def add_point(line, x, y):
+	line.set_xdata(list(line.get_xdata()) + [x])
+	line.set_ydata(list(line.get_ydata()) + [y])
+
+# Main loop where you update data
+def update_plots(new_data):
+	# Example: Assume new_data is a dictionary with new points for each dataset
+	add_point(lines["illegal_means"], new_data["games"], new_data["illegal_means"])
+	add_point(lines["legal_means"], new_data["games"], new_data["legal_means"])
+	add_point(lines["red_illegal_pct_hist"], new_data["games"], new_data["red_illegal_pct_hist"])
+	add_point(lines["black_illegal_pct_hist"], new_data["games"], new_data["black_illegal_pct_hist"])
+	add_point(lines["cost_hist"], new_data["games"], new_data["cost_hist"])
+	add_point(lines["max_hist0"], new_data["games"], new_data["max_hist0"])
+	add_point(lines["max_hist1"], new_data["games"], new_data["max_hist1"])
+	add_point(lines["max_hist2"], new_data["games"], new_data["max_hist2"])
+	add_point(lines["max_hist3"], new_data["games"], new_data["max_hist3"])
+	add_point(lines["max_hist4"], new_data["games"], new_data["max_hist4"])
+	add_point(lines["min_hist0"], new_data["games"], new_data["min_hist0"])
+	add_point(lines["min_hist1"], new_data["games"], new_data["min_hist1"])
+	add_point(lines["min_hist2"], new_data["games"], new_data["min_hist2"])
+	add_point(lines["min_hist3"], new_data["games"], new_data["min_hist3"])
+	add_point(lines["min_hist4"], new_data["games"], new_data["min_hist4"])
+
+	# Update plot limits and redraw
+	for ax in [ax1, ax2, ax3, ax4]:
+		ax.relim()
+		ax.autoscale_view()
+
+	plt.draw()
+	plt.pause(0.001)
 
 if input("Symmetric Models [Y/n]?") == "Y":
 	symmetric = True
@@ -137,6 +152,23 @@ if input("Play game [Y/n]:") == "Y":
 	ax4.set_title('Min/Max')
 	ax4.set_xlabel('Games')
 	ax4.set_ylabel('Min/Max')
+	lines = {
+		"illegal_means": ax1.plot([], [], 'r-')[0],
+		"legal_means": ax1.plot([], [], 'g-')[0],
+		"red_illegal_pct_hist": ax2.plot([], [], 'r-')[0],
+		"black_illegal_pct_hist": ax2.plot([], [], 'k-')[0],
+		"cost_hist": ax3.plot([], [], 'k-')[0],
+		"max_hist0": ax4.plot([], [], 'r-')[0],
+		"max_hist1": ax4.plot([], [], 'g-')[0],
+		"max_hist2": ax4.plot([], [], 'b-')[0],
+		"max_hist3": ax4.plot([], [], 'c-')[0],
+		"max_hist4": ax4.plot([], [], 'm-')[0],
+		"min_hist0": ax4.plot([], [], 'r--')[0],
+		"min_hist1": ax4.plot([], [], 'g--')[0],
+		"min_hist2": ax4.plot([], [], 'b--')[0],
+		"min_hist3": ax4.plot([], [], 'c--')[0],
+		"min_hist4": ax4.plot([], [], 'm--')[0]
+	}	
 	plt.show()
 
 	while True:
@@ -175,10 +207,10 @@ if input("Play game [Y/n]:") == "Y":
 		while not done:
 			red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_set))) # X values for all games where it's a red move (column vector * number of red move games)
 			black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_set))) # X values for all games where it's a black move (column vector * number of black move games)
-			red_Y_parallel = np.zeros((96, len(red_game_set))) # unit normalized label
-			black_Y_parallel = np.zeros((96, len(black_game_set))) # unit normalized label
-			red_mask_parallel = np.zeros((96, len(red_game_set))) # non-normalized label
-			black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized label
+			red_Y_parallel = np.zeros((96, len(red_game_set))) # unit normalized legal moves label
+			black_Y_parallel = np.zeros((96, len(black_game_set))) # unit normalized legal moves label
+			red_mask_parallel = np.zeros((96, len(red_game_set))) # non-normalized legal moves label
+			black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized legal moves label
 			red_moves_parallel = np.zeros((96, len(red_game_set)))
 			black_moves_parallel = np.zeros((96, len(black_game_set)))
 			red_attempts_parallel = np.zeros((1, len(red_game_set)))
@@ -286,8 +318,8 @@ if input("Play game [Y/n]:") == "Y":
 				if train_red == "Y":
 					print("Training Red...")
 					cost, params = red_model.train_model(Y = np.hstack(red_Y_parallel_batch), X = np.hstack(red_X_parallel_batch), weights = np.hstack(red_attempts_parallel_batch), illegal_masks = np.hstack(red_mask_parallel_batch))
-					illegal_means = params["illegal_means"]
-					legal_means = params["legal_means"]
+					illegal_mean = params["illegal_mean"]
+					legal_mean = params["legal_mean"]
 					minimums = params["mins"]
 					maximums = params["maxes"]
 					red_model.save_parameters()
@@ -297,40 +329,17 @@ if input("Play game [Y/n]:") == "Y":
 					black_player.save_parameters()
 			red_win_pct_hist.append(red_win_pct)
 			black_win_pct_hist.append(black_win_pct)
-			red_illegal_pct_hist.append(red_illegal_pct)
-			black_illegal_pct_hist.append(black_illegal_pct)
-			max_hist0.append(maximums[0])
-			max_hist1.append(maximums[1])
-			max_hist2.append(maximums[2])
-			max_hist3.append(maximums[3])
-			max_hist4.append(maximums[4])
-			#max_hist5.append(maximums[5])
-			min_hist0.append(minimums[0])
-			min_hist1.append(minimums[1])
-			min_hist2.append(minimums[2])
-			min_hist3.append(minimums[3])
-			min_hist4.append(minimums[4])
-			#min_hist5.append(minimums[5])
-			cost_hist.append(cost)
-			games_hist.append(games_total)
+			new_data = {
+				"games": games_total,  # Example game count
+				"illegal_means": illegal_mean, "legal_means": legal_mean,
+				"red_illegal_pct_hist": red_illegal_pct, "black_illegal_pct_hist": black_illegal_pct,
+				"cost_hist": cost,
+				"max_hist0": maximums[0], "max_hist1": maximums[1], "max_hist2": maximums[2], "max_hist3": maximums[3], "max_hist4": maximums[4],
+				"min_hist0": minimums[0], "min_hist1": minimums[1], "min_hist2": minimums[2], "min_hist3": minimums[3], "min_hist4": minimums[4],
+			}
+			update_plots(new_data)
 			if (params["trainings"] % plot_interval == 0) or params["trainings"] < 100:
-				#ax1.plot(games_hist, red_win_pct_hist, 'r-', games_hist, black_win_pct_hist, 'k-')
-				ax1.plot(games_hist, illegal_means, 'r-', games_hist, legal_means, 'g-')
-				ax2.plot(games_hist, red_illegal_pct_hist, 'r-', games_hist, black_illegal_pct_hist, 'k-')
-				ax3.semilogy(games_hist, cost_hist, 'k-')
-				ax4.plot(games_hist, max_hist0, 'r-')
-				ax4.plot(games_hist, max_hist1, 'g-')
-				ax4.plot(games_hist, max_hist2, 'b-')
-				ax4.plot(games_hist, max_hist3, 'c-')
-				ax4.plot(games_hist, max_hist4, 'm-')
-				#ax4.plot(games_hist, max_hist5, 'k-')
-				ax4.plot(games_hist, min_hist0, 'r-')
-				ax4.plot(games_hist, min_hist1, 'g-')
-				ax4.plot(games_hist, min_hist2, 'b-')
-				ax4.plot(games_hist, min_hist3, 'c-')
-				ax4.plot(games_hist, min_hist4, 'm-')
-				#ax4.plot(games_hist, min_hist5, 'k-')
-				plt.draw()
+				plt.show()
 				plt.pause(0.001)
 			red_wins = 0
 			black_wins = 0
