@@ -10,6 +10,8 @@ from Player import Player
 from Game import Game
 from shutil import copyfile
 import matplotlib.pyplot as plt
+import time
+import csv
 
 train = ''
 train_red = 'n'
@@ -170,12 +172,24 @@ if input("Play game [Y/n]:") == "Y":
 		"min_hist4": ax4.plot([], [], 'm--')[0]
 	}	
 	plt.show()
+	
+	stats = ["Create", "Play", "Train", "Main"]
+	training_stats = ["Init", "Forward", "Backward", "Bookkeeping", "Total"]
+	with open("stats.csv", mode="a", newline="") as file:
+		writer = csv.writer(file)
+		writer.writerow(stats)  # Write the list as a new row
+	with open("training_stats.csv", mode="a", newline="") as file:
+		writer = csv.writer(file)
+		writer.writerow(training_stats)  # Write the list as a new row
 
 	while True:
+		stats = []
+		main_loop_start = time.time()
 		red_game_set = []
 		black_game_set = []
 		games = []
 		done = False
+		create_games_start = time.time()
 		for count in range(0,train_games): # create a batch-sized array of games and "start" each game
 			game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = count)
 			"""
@@ -204,6 +218,10 @@ if input("Play game [Y/n]:") == "Y":
 		black_attempts_parallel_batch = []
 		black_game_numbers_batch = []
 		red_game_numbers_batch = []
+		create_games_end = time.time()
+		create_games_time = create_games_end - create_games_start
+		stats.append(create_games_time)
+		play_games_start = time.time()
 		while not done:
 			red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_set))) # X values for all games where it's a red move (column vector * number of red move games)
 			black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_set))) # X values for all games where it's a black move (column vector * number of black move games)
@@ -309,8 +327,11 @@ if input("Play game [Y/n]:") == "Y":
 						red_game_set.append(game) # append to list of games with red moves
 					else: #game with a black move
 						black_game_set.append(game) #append to list of games with black moves
+		play_games_end = time.time()
+		play_games_time = play_games_end - play_games_start
+		stats.append(play_games_time)
 
-
+		train_model_start = time.time()
 		if (train == "Y" or train_red == "Y" or train_black == "Y"):
 			if symmetric:
 				print("Training model...")
@@ -349,3 +370,13 @@ if input("Play game [Y/n]:") == "Y":
 			black_move_total = 0
 			red_player.reset()
 			black_player.reset()
+		train_model_end = time.time()
+		train_model_time = train_model_end - train_model_start
+		stats.append(train_model_time)
+
+		main_loop_end = time.time()
+		main_loop_time = main_loop_end - main_loop_start
+		stats.append(main_loop_time)
+		with open("stats.csv", mode="a", newline="") as file:
+			writer = csv.writer(file)
+			writer.writerow(stats)  # Write the list as a new row
