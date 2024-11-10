@@ -27,7 +27,7 @@ class PT(nn.Module):
 		layers.append(nn.Softmax(dim=1))
 		self.model = nn.Sequential(*layers)
 		self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
-		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.5)
+		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.9)
 		available = self.check_for_params()
 		if available:
 			if input("Start from saved?") == "Y":
