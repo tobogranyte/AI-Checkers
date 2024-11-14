@@ -96,18 +96,18 @@ def update_plots(new_data):
 	plt.draw()
 	plt.pause(0.001)
 
-if input("Symmetric Models [Y/n]?") == "Y":
-	symmetric = True
+if input("Self play [Y/n]?") == "Y":
+	self_play = True
 	s_model = input("Model name:")
 	train = input("Train models?")
-	if train == "Y":
-		train_games = int(input("Number of games before training:"))
-	import_string = 'from ' + s_model + ' import ' + s_model + ' as sm' # create symmetric model import string
+	train_games = int(input("Number of games before training:"))
+	bootstrap_threshold = int(input("Bootstrap threshold:"))
+	import_string = 'from ' + s_model + ' import ' + s_model + ' as sm' # create self_play model import string
 	exec(import_string, globals())
 	red_model = sm()
-	black_model = red_model
+	black_model = sm()
 else:
-	symmetric = False
+	self_play = False
 	r_model = input("Red player model:")
 	b_model = input("Black player model:")
 	if r_model != "RMM":
@@ -332,7 +332,7 @@ if input("Play game [Y/n]:") == "Y":
 
 		train_model_start = time.time()
 		if (train == "Y" or train_red == "Y" or train_black == "Y"):
-			if symmetric:
+			if self_play:
 				print("Training model...")
 				print("Training Red...")
 				cost, params = red_model.train_model(Y = np.hstack(red_Y_parallel_batch), X = np.hstack(red_X_parallel_batch), weights = np.hstack(red_attempts_parallel_batch), illegal_masks = np.hstack(red_mask_parallel_batch))
