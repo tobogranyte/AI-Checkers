@@ -96,19 +96,18 @@ def update_plots(new_data):
 	plt.draw()
 	plt.pause(0.001)
 
-if input("Symmetric Models [Y/n]?") == "Y":
-	symmetric = True
+if input("Self play [Y/n]?") == "Y":
+	self_play = True
 	s_model = input("Model name:")
 	train = input("Train models?")
-	if train == "Y":
-		train_games = int(input("Number of games before training:"))
-	import_string = 'from ' + s_model + ' import ' + s_model + ' as sm' # create symmetric model import string
+	train_games = int(input("Number of games before training:"))
+	bootstrap_threshold = int(input("Bootstrap threshold:"))
+	import_string = 'from ' + s_model + ' import ' + s_model + ' as sm' # create self_play model import string
 	exec(import_string, globals())
-	symmetric_model = sm()
-	red_player = Player(model = symmetric_model, color = "Red")
-	black_player = Player(model = symmetric_model, color = "Black")
+	red_model = sm()
+	black_model = sm()
 else:
-	symmetric = False
+	self_play = False
 	r_model = input("Red player model:")
 	b_model = input("Black player model:")
 	if r_model != "RMM":
@@ -117,15 +116,15 @@ else:
 		train_black = input("Train Black?")
 	if train_red == "Y" or train_black == "Y":
 		train_games = int(input("Number of games before training:"))
-	plot_interval = int(input("Plot interval:"))
 	red_import_string = 'from ' + r_model + ' import ' + r_model + ' as rm' # create red model import string
 	black_import_string = 'from ' + b_model + ' import ' + b_model + ' as bm' # create black model import string
 	exec(red_import_string, globals())
 	exec(black_import_string, globals())
 	red_model = rm()
 	black_model = bm()
-	red_player = Player(model = red_model, color = "Red") # create the red player assigning model and color
-	black_player = Player(model = black_model, color = "Black") # create the black player assigning model and color
+plot_interval = int(input("Plot interval:"))
+red_player = Player(model = red_model, color = "Red") # create the red player assigning model and color
+black_player = Player(model = black_model, color = "Black") # create the black player assigning model and color
 
 if input("Play game [Y/n]:") == "Y":
 
@@ -263,7 +262,7 @@ if input("Play game [Y/n]:") == "Y":
 				black_mask_parallel[:,n] = mask
 				black_game_numbers[:,n] = game.number
 			red_AL = red_model.forward_pass(red_X_parallel) # get matrix of vector probabilities for the next move in all red games
-			black_AL = black_model.forward_pass(black_X_parallel, black_game_numbers) # get matrix of vector probabilities for the next move in all black games
+			black_AL = black_model.forward_pass(black_X_parallel) # get matrix of vector probabilities for the next move in all black games
 			# count up attempts to get to a legal move
 			# make the legal move
 			for n, game in enumerate(red_game_set):
@@ -333,8 +332,15 @@ if input("Play game [Y/n]:") == "Y":
 
 		train_model_start = time.time()
 		if (train == "Y" or train_red == "Y" or train_black == "Y"):
-			if symmetric:
+			if self_play:
 				print("Training model...")
+				print("Training Red...")
+				cost, params = red_model.train_model(Y = np.hstack(red_Y_parallel_batch), X = np.hstack(red_X_parallel_batch), weights = np.hstack(red_attempts_parallel_batch), illegal_masks = np.hstack(red_mask_parallel_batch))
+				illegal_mean = params["illegal_mean"]
+				legal_mean = params["legal_mean"]
+				minimums = params["mins"]
+				maximums = params["maxes"]
+				red_model.save_parameters()
 			else:
 				if train_red == "Y":
 					print("Training Red...")
