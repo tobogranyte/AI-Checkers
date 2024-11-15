@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import os
 import random
 import numpy as np
+import time
+import csv
 
 class PT(nn.Module):
 
@@ -12,7 +14,7 @@ class PT(nn.Module):
 		self.set_seed(42)
 		self.batch_num = 0
 		self.layers_dims = [397, 1024, 512, 256, 128, 96] #  5-layer model
-		self.learning_rate = 0.0001
+		self.learning_rate = 0.001
 		checkpoint = False
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		print(self.device)
@@ -24,12 +26,20 @@ class PT(nn.Module):
 		layers.append(nn.Linear(self.layers_dims[n+1], self.layers_dims[n+2]))
 		self.model = nn.Sequential(*layers)
 		self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
-		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=50, gamma=1)
+		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.9)
 		available = self.check_for_params()
 		if available:
 			if input("Start from saved?") == "Y":
 				# Restore variables from disk.
-				self.model.load_state_dict(torch.load("Torch/model_weights.pth"))
+				checkpoint = torch.load('Torch/model_state.pth')
+				self.model.load_state_dict(checkpoint['model_state_dict'])
+				self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+				self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+				for state in self.optimizer.state.values():
+					for k, v in state.items():
+						if isinstance(v, torch.Tensor):
+							state[k] = v.to(self.device)
+
 				print("Session restored!")
 				if input("Make checkpoint from saved?") == "Y":
 					name = input("Checkpoint name:")
@@ -55,7 +65,6 @@ class PT(nn.Module):
 	#			self.plot_activations()
 	#			self.check_gradients()
 	#			input("Paused.")
-		self.initialize_training_batch()
 		self.legal_means = []
 		self.illegal_means = []
 		self.trainings = 0
@@ -120,6 +129,10 @@ class PT(nn.Module):
 		weights: parallel set of number of attempts at a move to weight the cost.
 		mask: parallel set of non-normalized legal move vectors
 		"""
+		training_stats = []
+		total_start = time.time()
+		train_init_start = time.time()
+		self.initialize_training_batch()
 		self.model.train()
 		params = {}
 		self.add_hooks()
@@ -133,24 +146,35 @@ class PT(nn.Module):
 		print(mask_t[0])
 		weights = self.convert(weights)
 		weights = weights.to(self.device)
+		train_init_end = time.time()
+		train_init_time = train_init_end - train_init_start
+		training_stats.append(train_init_time)
+		forward_prop_start = time.time()
+		print(X.size(0))
 		X = self(X)
+		forward_prop_end = time.time()
+		forward_prop_time = forward_prop_end - forward_prop_start
+		training_stats.append(forward_prop_time)
 		# cost = ((Y - X) ** 2) * weights
 		# cost = cost.mean()
+		backward_prop_start = time.time()
 		weighted_log_prob = torch.log(X) * weights
 		cost = - weighted_log_prob[Y == 1]
 		cost = cost.sum()
 		self.optimizer.zero_grad(set_to_none=True)
 		cost.backward()
 		self.optimizer.step()
+		backward_prop_end = time.time()
+		backward_prop_time = backward_prop_end - backward_prop_start
+		training_stats.append(backward_prop_time)
+		bookkeeping_start = time.time()
 
 		self.relu_activations = self.get_relu_activations()
 		self.save_weights()
-		L = len(self.weights)
 		mins = []
 		maxes = []
+		L = len(self.weights)
 		for l in reversed(range(L)):
-			print(f'layer {l} max: {np.amax(self.weights[l])}')
-			print(f'layer {l} min: {np.amin(self.weights[l])}')
 			mins.append(np.amin(self.weights[l]))
 			maxes.append(np.amax(self.weights[l]))
 		self.trainings += 1
@@ -158,16 +182,23 @@ class PT(nn.Module):
 		print("Training batch {}: Current learning rate: {:.6f}".format(self.trainings, self.optimizer.param_groups[0]['lr']))
 		# self.plot_activations()
 
-		self.legal_means.append(legal_mean)
-		self.illegal_means.append(illegal_mean)
 
 		params["trainings"] = self.trainings
 		params["mins"] = mins
 		params["maxes"] = maxes
 
-		self.initialize_training_batch()
 		print(torch.cuda.memory_allocated())
-		
+		bookkeeping_end = time.time()
+		bookkeeping_time = bookkeeping_end - bookkeeping_start
+		training_stats.append(bookkeeping_time)
+		total_end = time.time()
+		total_time = total_end - total_start
+		training_stats.append(total_time)
+		self.remove_hooks()
+		with open("training_stats.csv", mode="a", newline="") as file:
+			writer = csv.writer(file)
+			writer.writerow(training_stats)  # Write the list as a new row
+
 		return cost.detach().cpu().numpy().astype(np.float64), params
 
 
@@ -236,10 +267,17 @@ class PT(nn.Module):
 		self.num_attempts_batch = []
 
 	def save_parameters(self):
-		self.save_obj("model_weights")
+		self.save_obj("model_state")
 
 	def save_obj(self, name):
-		torch.save(self.model.state_dict(), 'Torch/' + name + '.pth')
+		checkpoint = {
+			'model_state_dict': self.model.state_dict(),
+			'optimizer_state_dict': self.optimizer.state_dict(),
+			'scheduler_state_dict': self.scheduler.state_dict(),  # Save scheduler state
+		}
+
+		# Save the checkpoint
+		torch.save(checkpoint, 'Torch/' + name + '.pth')
 
 
 	def check_for_params(self):

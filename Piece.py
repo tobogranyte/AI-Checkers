@@ -16,6 +16,7 @@ class Piece:
 	# def place_piece(board)
 
 	def update_position_array(self):
+		# [R, RK, B, BK]
 		self.position_array = np.array([(self.color == "Red") and not (self.king), (self.color == "Red") and self.king, (self.color == "Black") and not (self.king), (self.color == "Black") and self.king]) * 1 * self.in_play
 
 	def number_one_hot(self):
