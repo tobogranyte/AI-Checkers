@@ -22,7 +22,6 @@ class PT(nn.Module):
 			layers.append(nn.LayerNorm(self.layers_dims[n+1]))
 			layers.append(nn.ReLU())
 		layers.append(nn.Linear(self.layers_dims[n+1], self.layers_dims[n+2]))
-		layers.append(nn.Softmax(dim=1))
 		self.model = nn.Sequential(*layers)
 		self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
 		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=50, gamma=1)
@@ -89,18 +88,22 @@ class PT(nn.Module):
 			handle.remove()
 		self.hook_handles.clear()  # Clear the list after removal
 
-	def forward_pass(self, x):
+	def forward_pass(self, x, mask):
 		x = self.convert(x)
 		x = x.to(self.device)
+		mask = self.convert(mask)
+		mask = mask.to(self.device)
 		self.model.eval()
 		with torch.no_grad():
-			x = self(x)
+			x = self(x, mask)
 		x = self.deconvert(x)
 		return x
 
-	def forward(self, x, y=None):
-		x = self.model(x)
-		return x
+	def forward(self, x, mask, y=None):
+		logits = self.model(x)
+		masked_logits = logits.masked_fill(mask == 0, float('-inf'))  # Mask illegal moves
+		masked_probs = F.softmax(masked_logits, dim=1)  # Apply softmax only on legal moves
+		return masked_probs
 
 	def generate_move(self, AL): # generate a move from a probabilities vector
 		choice = np.squeeze(np.random.choice(96, 1, p=AL.flatten()/np.sum(AL.flatten()))) # roll the dice and p b
@@ -110,12 +113,12 @@ class PT(nn.Module):
 
 		return one_hot_move, piece_number, move
 
-	def train_model(self, Y, X, weights, illegal_masks):
+	def train_model(self, Y, X, mask):
 		"""
 		y: parallel set of unit-normalized legal move vectors to calculate cost.
 		x: parallel set of input vectors.
 		weights: parallel set of number of attempts at a move to weight the cost.
-		illegal_masks: parallel set of non-normalized legal move vectors
+		mask: parallel set of non-normalized legal move vectors
 		"""
 		self.model.train()
 		params = {}
@@ -125,16 +128,16 @@ class PT(nn.Module):
 		X = X.to(self.device)
 		Y = self.convert(Y)
 		Y = Y.to(self.device)
-		illegal_masks_t = self.convert(illegal_masks)
-		illegal_masks_t = illegal_masks_t.to(self.device)
-		print(illegal_masks_t[0])
+		mask_t = self.convert(mask)
+		mask_t = mask_t.to(self.device)
+		print(mask_t[0])
 		weights = self.convert(weights)
 		weights = weights.to(self.device)
 		X = self(X)
 		# cost = ((Y - X) ** 2) * weights
 		# cost = cost.mean()
 		weighted_log_prob = torch.log(X) * weights
-		cost = - weighted_log_prob[illegal_masks_t == 1]
+		cost = - weighted_log_prob[Y == 1]
 		cost = cost.sum()
 		self.optimizer.zero_grad(set_to_none=True)
 		cost.backward()
@@ -154,13 +157,10 @@ class PT(nn.Module):
 		self.scheduler.step()
 		print("Training batch {}: Current learning rate: {:.6f}".format(self.trainings, self.optimizer.param_groups[0]['lr']))
 		# self.plot_activations()
-		legal_mean, illegal_mean = self.get_means(X, illegal_masks) # use if only training on legal moves, not all moves
 
 		self.legal_means.append(legal_mean)
 		self.illegal_means.append(illegal_mean)
 
-		params["illegal_means"] = self.illegal_means
-		params["legal_means"] = self.legal_means
 		params["trainings"] = self.trainings
 		params["mins"] = mins
 		params["maxes"] = maxes
@@ -170,12 +170,6 @@ class PT(nn.Module):
 		
 		return cost.detach().cpu().numpy().astype(np.float64), params
 
-	def get_means(self, X, illegal_masks):
-		X = self.deconvert(X)
-		legal_mean = np.sum(X * illegal_masks)/np.count_nonzero(illegal_masks)
-		illegal_mean = np.sum(X * (1 - illegal_masks))/np.count_nonzero(1 - illegal_masks)
-
-		return legal_mean, illegal_mean 
 
 	def _save_activation(self, name):
 		# Hook function to save activations

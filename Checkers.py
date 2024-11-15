@@ -60,8 +60,6 @@ def tally_and_print_stats(game):
 	global black_illegal_pct
 
 	win, side, red_piece_count, black_piece_count, red_move_count, black_move_count, red_illegal_count, black_illegal_count = game.stats()
-	red_illegal_total += game.red_attempts - game.red_moves
-	black_illegal_total += game.black_attempts - game.black_moves
 	red_move_total += game.red_moves
 	black_move_total += game.black_moves
 	if side == "Red":
@@ -125,18 +123,32 @@ if input("Play game [Y/n]:") == "Y":
 	#ax1.set_title('Win Percentage')
 	#ax1.set_xlabel('Games')
 	#ax1.set_ylabel('Percentage')
-	ax1.set_title('Illegal/Legal Means')
+	ax1.set_title('Red Win Percentage')
 	ax1.set_xlabel('Games')
 	ax1.set_ylabel('Percentage')
-	ax2.set_title('Illegal Move Percentage')
-	ax2.set_xlabel('Games')
-	ax2.set_ylabel('Percentage')
 	ax3.set_title('Cost')
 	ax3.set_xlabel('Games')
 	ax3.set_ylabel('Cost')
 	ax4.set_title('Min/Max')
 	ax4.set_xlabel('Games')
 	ax4.set_ylabel('Min/Max')
+<<<<<<< Updated upstream
+=======
+	lines = {
+		"win_pct": ax1.plot([], [], 'r-')[0],
+		"cost_hist": ax3.plot([], [], 'k-')[0],
+		"max_hist0": ax4.plot([], [], 'r-')[0],
+		"max_hist1": ax4.plot([], [], 'g-')[0],
+		"max_hist2": ax4.plot([], [], 'b-')[0],
+		"max_hist3": ax4.plot([], [], 'c-')[0],
+		"max_hist4": ax4.plot([], [], 'm-')[0],
+		"min_hist0": ax4.plot([], [], 'r--')[0],
+		"min_hist1": ax4.plot([], [], 'g--')[0],
+		"min_hist2": ax4.plot([], [], 'b--')[0],
+		"min_hist3": ax4.plot([], [], 'c--')[0],
+		"min_hist4": ax4.plot([], [], 'm--')[0]
+	}	
+>>>>>>> Stashed changes
 	plt.show()
 
 	while True:
@@ -162,27 +174,19 @@ if input("Play game [Y/n]:") == "Y":
 		batch_count += 1 # this is the first batch
 		red_X_parallel_batch = []
 		black_X_parallel_batch = []
-		red_Y_parallel_batch = []
-		black_Y_parallel_batch = []
 		red_mask_parallel_batch = []
 		black_mask_parallel_batch = []
 		red_moves_parallel_batch = []
 		black_moves_parallel_batch = []
-		red_attempts_parallel_batch = []
-		black_attempts_parallel_batch = []
 		black_game_numbers_batch = []
 		red_game_numbers_batch = []
 		while not done:
 			red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_set))) # X values for all games where it's a red move (column vector * number of red move games)
 			black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_set))) # X values for all games where it's a black move (column vector * number of black move games)
-			red_Y_parallel = np.zeros((96, len(red_game_set))) # unit normalized label
-			black_Y_parallel = np.zeros((96, len(black_game_set))) # unit normalized label
-			red_mask_parallel = np.zeros((96, len(red_game_set))) # non-normalized label
-			black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized label
+			red_mask_parallel = np.zeros((96, len(red_game_set))) # non-normalized legal moves label
+			black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized legal moves label
 			red_moves_parallel = np.zeros((96, len(red_game_set)))
 			black_moves_parallel = np.zeros((96, len(black_game_set)))
-			red_attempts_parallel = np.zeros((1, len(red_game_set)))
-			black_attempts_parallel = np.zeros((1, len(black_game_set)))
 			black_game_numbers = np.zeros((1, len(black_game_set)))
 			red_game_numbers = np.zeros((1, len(red_game_set)))
 			for n, game in enumerate(red_game_set):
@@ -191,14 +195,13 @@ if input("Play game [Y/n]:") == "Y":
 				the model and add it to the appropriate location in the red_X_batch.
 				Also for each game, get the Y (legal moves) and add it to the red_Y_batch.
 				"""
-				X, Y, mask = game.generate_X_Y_mask()
+				X, mask = game.generate_X_mask()
 				"""
 				X: (397) Input vector for the model
 				Y: (96) Unit normalized vector with illegal moves all zero and legal moves summing to 1
 				mask: (96) Illegal moves 0, Legal moves 1
 				"""
 				red_X_parallel[:,n] = X # insert X as a column to the parallel input
-				red_Y_parallel[:,n] = Y # insert Y as a column to the parallel unit normal label
 				red_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
 				red_game_numbers[:,n] = game.number # the game number in the batch of games being played
 			for n, game in enumerate(black_game_set):
@@ -207,61 +210,48 @@ if input("Play game [Y/n]:") == "Y":
 				the model and add it to the appropriate location in the black_X_batch.
 				Also for each game, get the Y (legal moves) and add it to the black_Y_batch.
 				"""
-				X, Y, mask = game.generate_X_Y_mask()
+				X, mask = game.generate_X_mask()
 				black_X_parallel[:,n] = X
-				black_Y_parallel[:,n] = Y
 				black_mask_parallel[:,n] = mask
 				black_game_numbers[:,n] = game.number
-			red_AL = red_model.forward_pass(red_X_parallel) # get matrix of vector probabilities for the next move in all red games
-			black_AL = black_model.forward_pass(black_X_parallel, black_game_numbers) # get matrix of vector probabilities for the next move in all black games
-			# count up attempts to get to a legal move
-			# make the legal move
+			red_AL = red_model.forward_pass(red_X_parallel, red_mask_parallel) # get matrix of vector probabilities for the next move in all red games
+			black_AL = black_model.forward_pass(black_X_parallel, black_mask_parallel) # get matrix of vector probabilities for the next move in all black games
 			for n, game in enumerate(red_game_set):
 				"""
-				Step through each game in the red game batch. Get a one hot move by rolling the dice according to probabilities (red_Y_parallel).
+				Step through each game in the red game batch. Get a one hot move by rolling the dice according to probabilities.
 				Keep rolling the dice until a legal move is generated.
 				Make the move.
 				"""
-				num_attempts = 1 # every move takes at least one attempt to get correct
-				if np.count_nonzero(red_Y_parallel[:,n]) != 0: # if there are any legal moves at all
+				if np.count_nonzero(red_mask_parallel[:,n]) != 0: # if there are any legal moves at all
 					one_hot_move, piece_number, move = red_model.generate_move(red_AL[:,n]) # make a dice-roll attempt
 					while np.count_nonzero(one_hot_move * red_mask_parallel[:,n]) == 0: # check if the current proposed move is illegal
-						num_attempts += 1 # increment the number of attempts
+						print('Illegal move')
 						one_hot_move, piece_number, move = red_model.generate_move(red_AL[:,n]) # roll the dice again
-					red_attempts_parallel[:,n] = num_attempts # log the number of attempts
 					red_moves_parallel[:,n] = one_hot_move # log the move made
 					win, stalemate = game.make_move(move, piece_number) # have the game make the move
-					game.update_attempts_and_moves(num_attempts, "Red")
 					if win or stalemate: # if it was a win or stalemate (game over)
 						tally_and_print_stats(game)
 			for n, game in enumerate(black_game_set):
 				"""
-				Step through each game in the black game batch. Get a one hot move by rolling the dice according to probabilities (black_Y_parallel).
+				Step through each game in the black game batch. Get a one hot move by rolling the dice according to probabilities.
 				Keep rolling the dice until a legal move is generated.
 				Make the move.
 				"""
-				num_attempts = 1 # every move takes at least one attempt to get correct
-				if np.count_nonzero(black_Y_parallel[:,n]) != 0: # if there are any legal moves at all
+				if np.count_nonzero(black_mask_parallel[:,n]) != 0: # if there are any legal moves at all
 					one_hot_move, piece_number, move = black_model.generate_move(black_AL[:,n]) # make a dice-roll attempt
 					while np.count_nonzero(one_hot_move * black_mask_parallel[:,n]) == 0: # check if the current proposed move is illegal
-						num_attempts += 1 # increment the number of attempts
+						print('Illegal move')
 						one_hot_move, piece_number, move = black_model.generate_move(black_AL[:,n]) # roll the dice again
-					black_attempts_parallel[:,n] = num_attempts # log the number of attempts
 					black_moves_parallel[:,n] = one_hot_move # log the move made
 					win, stalemate = game.make_move(move, piece_number) # have the game make the move
-					game.update_attempts_and_moves(num_attempts, "Black")
 					if win or stalemate: # if it was a win or stalemate (game over)
 						tally_and_print_stats(game)
 			red_X_parallel_batch.append(red_X_parallel)
 			black_X_parallel_batch.append(black_X_parallel)
-			red_Y_parallel_batch.append(red_Y_parallel) # Y is the unit normalized set of legal moves
-			black_Y_parallel_batch.append(black_Y_parallel)
 			red_mask_parallel_batch.append(red_mask_parallel)
 			black_mask_parallel_batch.append(black_mask_parallel)
 			red_moves_parallel_batch.append(red_moves_parallel)
 			black_moves_parallel_batch.append(black_moves_parallel)
-			red_attempts_parallel_batch.append(red_attempts_parallel)
-			black_attempts_parallel_batch.append(black_attempts_parallel)
 			black_game_numbers_batch.append(black_game_numbers)
 			red_game_numbers_batch.append(red_game_numbers)
 
@@ -282,12 +272,17 @@ if input("Play game [Y/n]:") == "Y":
 		if (train == "Y" or train_red == "Y" or train_black == "Y"):
 			if symmetric:
 				print("Training model...")
+				print("Training Red...")
+				cost, params = red_model.train_model(Y = np.hstack(red_moves_parallel_batch), X = np.hstack(red_X_parallel_batch)), illegal_masks = np.hstack(red_mask_parallel_batch))
+				illegal_mean = params["illegal_mean"]
+				legal_mean = params["legal_mean"]
+				minimums = params["mins"]
+				maximums = params["maxes"]
+				red_model.save_parameters()
 			else:
 				if train_red == "Y":
 					print("Training Red...")
-					cost, params = red_model.train_model(Y = np.hstack(red_Y_parallel_batch), X = np.hstack(red_X_parallel_batch), weights = np.hstack(red_attempts_parallel_batch), illegal_masks = np.hstack(red_mask_parallel_batch))
-					illegal_means = params["illegal_means"]
-					legal_means = params["legal_means"]
+					cost, params = red_model.train_model(Y = np.hstack(red_moves_parallel_batch), X = np.hstack(red_X_parallel_batch)), illegal_masks = np.hstack(red_mask_parallel_batch))
 					minimums = params["mins"]
 					maximums = params["maxes"]
 					red_model.save_parameters()
@@ -295,24 +290,14 @@ if input("Play game [Y/n]:") == "Y":
 					print("Training Black...")
 					black_player.train_model()
 					black_player.save_parameters()
-			red_win_pct_hist.append(red_win_pct)
-			black_win_pct_hist.append(black_win_pct)
-			red_illegal_pct_hist.append(red_illegal_pct)
-			black_illegal_pct_hist.append(black_illegal_pct)
-			max_hist0.append(maximums[0])
-			max_hist1.append(maximums[1])
-			max_hist2.append(maximums[2])
-			max_hist3.append(maximums[3])
-			max_hist4.append(maximums[4])
-			#max_hist5.append(maximums[5])
-			min_hist0.append(minimums[0])
-			min_hist1.append(minimums[1])
-			min_hist2.append(minimums[2])
-			min_hist3.append(minimums[3])
-			min_hist4.append(minimums[4])
-			#min_hist5.append(minimums[5])
-			cost_hist.append(cost)
-			games_hist.append(games_total)
+			new_data = {
+				"games": games_total,  # Example game count
+				"win_pct": red_win_pct,
+				"cost_hist": cost,
+				"max_hist0": maximums[0], "max_hist1": maximums[1], "max_hist2": maximums[2], "max_hist3": maximums[3], "max_hist4": maximums[4],
+				"min_hist0": minimums[0], "min_hist1": minimums[1], "min_hist2": minimums[2], "min_hist3": minimums[3], "min_hist4": minimums[4],
+			}
+			update_plots(new_data)
 			if (params["trainings"] % plot_interval == 0) or params["trainings"] < 100:
 				#ax1.plot(games_hist, red_win_pct_hist, 'r-', games_hist, black_win_pct_hist, 'k-')
 				ax1.plot(games_hist, illegal_means, 'r-', games_hist, legal_means, 'g-')

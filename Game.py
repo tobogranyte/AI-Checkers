@@ -30,14 +30,6 @@ class Game:
 			self.player = self.black_player
 
 
-	def update_attempts_and_moves(self, attempts, color):
-		if color == "Red":
-			self.red_attempts += attempts
-			self.red_moves += 1
-		else:
-			self.black_attempts += attempts
-			self.black_moves += 1
-
 	def player_color(self):
 		return self.player.color
 
@@ -107,14 +99,10 @@ class Game:
 
 		return self.win, self.side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
 				
-	def generate_X_Y_mask(self):
+	def generate_X_mask(self):
 		X = self.player.model.get_input_vector(self.board, self.player.color, jump_piece_number = self.jump_piece_number)
 		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves (48,) for current board position (0: illegal, 1:legal, 2:jump-legal)
-		S = np.sum(board_legal_moves, axis = 0) # sum of total legal moves
-		if S == 0:
-			S = 1
 		# Can't have this be 0 because the next line divides by zero
-		Y = board_legal_moves / (S) # divide each move mask vector by S to get a unit normal label
 
 		return X, Y, board_legal_moves
 
