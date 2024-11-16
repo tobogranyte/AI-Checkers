@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import os
 import random
 import numpy as np
 import time
 import csv
+import pdb
 
 class PT(nn.Module):
 
@@ -112,6 +114,9 @@ class PT(nn.Module):
 		logits = self.model(x)
 		masked_logits = logits.masked_fill(mask == 0, float('-inf'))  # Mask illegal moves
 		masked_probs = F.softmax(masked_logits, dim=1)  # Apply softmax only on legal moves
+		if torch.isnan(masked_probs).any():
+			pdb.set_trace()
+
 		return masked_probs
 
 	def generate_move(self, AL): # generate a move from a probabilities vector
@@ -129,6 +134,7 @@ class PT(nn.Module):
 		weights: parallel set of number of attempts at a move to weight the cost.
 		mask: parallel set of non-normalized legal move vectors
 		"""
+		epsilon = 1e-8
 		training_stats = []
 		total_start = time.time()
 		train_init_start = time.time()
@@ -144,22 +150,18 @@ class PT(nn.Module):
 		mask_t = self.convert(mask)
 		mask_t = mask_t.to(self.device)
 		print(mask_t[0])
-		weights = self.convert(weights)
-		weights = weights.to(self.device)
 		train_init_end = time.time()
 		train_init_time = train_init_end - train_init_start
 		training_stats.append(train_init_time)
 		forward_prop_start = time.time()
 		print(X.size(0))
-		X = self(X)
+		X = self(X, mask_t)
 		forward_prop_end = time.time()
 		forward_prop_time = forward_prop_end - forward_prop_start
 		training_stats.append(forward_prop_time)
-		# cost = ((Y - X) ** 2) * weights
-		# cost = cost.mean()
 		backward_prop_start = time.time()
-		weighted_log_prob = torch.log(X) * weights
-		cost = - weighted_log_prob[Y == 1]
+		log_prob = torch.log(X + epsilon)
+		cost = - log_prob[Y == 1]
 		cost = cost.sum()
 		self.optimizer.zero_grad(set_to_none=True)
 		cost.backward()

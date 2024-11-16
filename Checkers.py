@@ -12,6 +12,7 @@ from shutil import copyfile
 import matplotlib.pyplot as plt
 import time
 import csv
+import pdb
 
 train = ''
 train_red = 'n'
@@ -57,11 +58,9 @@ def tally_and_print_stats(game):
 	else:
 		p_side = "Black"
 	margin = abs(red_piece_count - black_piece_count)
-	red_illegal_pct = (red_illegal_total * 100)/(red_move_total + red_illegal_total)
-	black_illegal_pct = (black_illegal_total * 100)/(black_move_total + black_illegal_total)
 	red_win_pct = (red_wins * 100)/(red_wins + black_wins)
 	black_win_pct = (black_wins * 100)/(red_wins + black_wins)
-	print("%8d" % game.number, p_side, "%.2f" % red_illegal_pct, "%.2f" % black_illegal_pct, "%.2f" % red_win_pct, "%.2f" % black_win_pct)
+	print("%8d" % game.number, p_side, "%.2f" % red_win_pct, "%.2f" % black_win_pct)
 
 def add_point(line, x, y):
 	line.set_xdata(list(line.get_xdata()) + [x])
@@ -70,10 +69,7 @@ def add_point(line, x, y):
 # Main loop where you update data
 def update_plots(new_data):
 	# Example: Assume new_data is a dictionary with new points for each dataset
-	add_point(lines["illegal_means"], new_data["games"], new_data["illegal_means"])
-	add_point(lines["legal_means"], new_data["games"], new_data["legal_means"])
-	add_point(lines["red_illegal_pct_hist"], new_data["games"], new_data["red_illegal_pct_hist"])
-	add_point(lines["black_illegal_pct_hist"], new_data["games"], new_data["black_illegal_pct_hist"])
+	add_point(lines["win_pct"], new_data["games"], new_data["win_pct"])
 	add_point(lines["cost_hist"], new_data["games"], new_data["cost_hist"])
 	add_point(lines["max_hist0"], new_data["games"], new_data["max_hist0"])
 	add_point(lines["max_hist1"], new_data["games"], new_data["max_hist1"])
@@ -309,16 +305,14 @@ if input("Play game [Y/n]:") == "Y":
 			if self_play:
 				print("Training model...")
 				print("Training Red...")
-				cost, params = red_model.train_model(Y = np.hstack(red_moves_parallel_batch), X = np.hstack(red_X_parallel_batch)), illegal_masks = np.hstack(red_mask_parallel_batch))
-				illegal_mean = params["illegal_mean"]
-				legal_mean = params["legal_mean"]
+				cost, params = red_model.train_model(Y = np.hstack(red_moves_parallel_batch), X = np.hstack(red_X_parallel_batch), mask = np.hstack(red_mask_parallel_batch))
 				minimums = params["mins"]
 				maximums = params["maxes"]
 				red_model.save_parameters()
 			else:
 				if train_red == "Y":
 					print("Training Red...")
-					cost, params = red_model.train_model(Y = np.hstack(red_moves_parallel_batch), X = np.hstack(red_X_parallel_batch)), illegal_masks = np.hstack(red_mask_parallel_batch))
+					cost, params = red_model.train_model(Y = np.hstack(red_moves_parallel_batch), X = np.hstack(red_X_parallel_batch), mask = np.hstack(red_mask_parallel_batch))
 					minimums = params["mins"]
 					maximums = params["maxes"]
 					red_model.save_parameters()
