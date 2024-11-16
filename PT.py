@@ -16,7 +16,7 @@ class PT(nn.Module):
 		self.set_seed(42)
 		self.batch_num = 0
 		self.layers_dims = [397, 1024, 512, 256, 128, 96] #  5-layer model
-		self.learning_rate = 0.001
+		self.learning_rate = 0.0005
 		checkpoint = False
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		print(self.device)
@@ -28,7 +28,7 @@ class PT(nn.Module):
 		layers.append(nn.Linear(self.layers_dims[n+1], self.layers_dims[n+2]))
 		self.model = nn.Sequential(*layers)
 		self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
-		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=0.9)
+		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=100, gamma=1	)
 		available = self.check_for_params()
 		if available:
 			if input("Start from saved?") == "Y":
@@ -127,7 +127,7 @@ class PT(nn.Module):
 
 		return one_hot_move, piece_number, move
 
-	def train_model(self, Y, X, mask):
+	def train_model(self, Y, X, mask, reward):
 		"""
 		y: parallel set of unit-normalized legal move vectors to calculate cost.
 		x: parallel set of input vectors.
@@ -149,6 +149,8 @@ class PT(nn.Module):
 		Y = Y.to(self.device)
 		mask_t = self.convert(mask)
 		mask_t = mask_t.to(self.device)
+		reward = self.convert(reward)
+		reward = reward.to(self.device)
 		print(mask_t[0])
 		train_init_end = time.time()
 		train_init_time = train_init_end - train_init_start
@@ -161,7 +163,7 @@ class PT(nn.Module):
 		training_stats.append(forward_prop_time)
 		backward_prop_start = time.time()
 		log_prob = torch.log(X + epsilon)
-		cost = - log_prob[Y == 1]
+		cost = - reward * log_prob[Y == 1]
 		cost = cost.sum()
 		self.optimizer.zero_grad(set_to_none=True)
 		cost.backward()

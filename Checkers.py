@@ -178,6 +178,7 @@ if input("Play game [Y/n]:") == "Y":
 		games = []
 		done = False
 		create_games_start = time.time()
+		game_reward = np.zeros((1, train_games), dtype=int)
 		for count in range(0,train_games): # create a batch-sized array of games and "start" each game
 			game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = count)
 			"""
@@ -215,8 +216,8 @@ if input("Play game [Y/n]:") == "Y":
 			black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized legal moves label
 			red_moves_parallel = np.zeros((96, len(red_game_set)))
 			black_moves_parallel = np.zeros((96, len(black_game_set)))
-			black_game_numbers = np.zeros((1, len(black_game_set)))
-			red_game_numbers = np.zeros((1, len(red_game_set)))
+			black_game_numbers = np.zeros((1, len(black_game_set)), dtype=int)
+			red_game_numbers = np.zeros((1, len(red_game_set)), dtype=int)
 			for n, game in enumerate(red_game_set):
 				"""
 				Step through each game in the red training batch. For each game, get the input vector (X) from
@@ -258,7 +259,10 @@ if input("Play game [Y/n]:") == "Y":
 						one_hot_move, piece_number, move = red_model.generate_move(red_AL[:,n]) # roll the dice again
 					red_moves_parallel[:,n] = one_hot_move # log the move made
 					win, stalemate = game.make_move(move, piece_number) # have the game make the move
-					if win or stalemate: # if it was a win or stalemate (game over)
+					if win: # if it was a win or stalemate (game over)
+						game_reward[:,game.number] = 1 # positive reward for this game because red won
+						tally_and_print_stats(game)
+					elif stalemate:
 						tally_and_print_stats(game)
 			for n, game in enumerate(black_game_set):
 				"""
@@ -273,7 +277,10 @@ if input("Play game [Y/n]:") == "Y":
 						one_hot_move, piece_number, move = black_model.generate_move(black_AL[:,n]) # roll the dice again
 					black_moves_parallel[:,n] = one_hot_move # log the move made
 					win, stalemate = game.make_move(move, piece_number) # have the game make the move
-					if win or stalemate: # if it was a win or stalemate (game over)
+					if win: # if it was a win or stalemate (game over)
+						game_reward[:,game.number] = -1 # negatie reward for this game because red lost
+						tally_and_print_stats(game)
+					elif stalemate:
 						tally_and_print_stats(game)
 			red_X_parallel_batch.append(red_X_parallel)
 			black_X_parallel_batch.append(black_X_parallel)
@@ -305,7 +312,11 @@ if input("Play game [Y/n]:") == "Y":
 			if self_play:
 				print("Training model...")
 				print("Training Red...")
-				cost, params = red_model.train_model(Y = np.hstack(red_moves_parallel_batch), X = np.hstack(red_X_parallel_batch), mask = np.hstack(red_mask_parallel_batch))
+				Y = np.hstack(red_moves_parallel_batch)
+				X = np.hstack(red_X_parallel_batch)
+				mask = np.hstack(red_mask_parallel_batch)
+				reward = game_reward[:, np.hstack(red_game_numbers_batch)]
+				cost, params = red_model.train_model(Y, X, mask, reward)
 				minimums = params["mins"]
 				maximums = params["maxes"]
 				red_model.save_parameters()
