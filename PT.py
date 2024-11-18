@@ -11,13 +11,15 @@ import pdb
 
 class PT(nn.Module):
 
-	def __init__(self):
+	def __init__(self, name):
 		super().__init__()
+		self.name = name
 		self.set_seed(42)
 		self.batch_num = 0
 		self.layers_dims = [397, 1024, 512, 256, 128, 96] #  5-layer model
 		self.learning_rate = 0.0005
 		checkpoint = False
+		self.from_saved = False
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		print(self.device)
 		layers = []
@@ -33,19 +35,13 @@ class PT(nn.Module):
 		if available:
 			if input("Start from saved?") == "Y":
 				# Restore variables from disk.
-				checkpoint = torch.load('Torch/model_state.pth')
-				self.model.load_state_dict(checkpoint['model_state_dict'])
-				self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-				self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-				for state in self.optimizer.state.values():
-					for k, v in state.items():
-						if isinstance(v, torch.Tensor):
-							state[k] = v.to(self.device)
+				self.load_checkpoint(self.name)
 
 				print("Session restored!")
 				if input("Make checkpoint from saved?") == "Y":
 					name = input("Checkpoint name:")
 					self.save_obj(name)
+				self.from_saved = True
 			else:
 				if input("Start from checkpoint?") == "Y":
 					while checkpoint == False and name != 's':
@@ -173,7 +169,6 @@ class PT(nn.Module):
 		training_stats.append(backward_prop_time)
 		bookkeeping_start = time.time()
 
-		self.relu_activations = self.get_relu_activations()
 		self.save_weights()
 		mins = []
 		maxes = []
@@ -220,11 +215,6 @@ class PT(nn.Module):
 			# Check if the layer is an instance of nn.Linear
 			if isinstance(layer, nn.Linear):
 				self.weights.append(layer.weight.detach().cpu().numpy())
-				
-
-
-	def get_relu_activations(self):
-		return [activation.numpy() for name, activation in self.activations.items() if ('_ReLU' in name) or ('_Softmax' in name)]
 
 	def convert(self, x):
 		x = torch.from_numpy(np.array(x, dtype=np.float32)).transpose(0,1)
@@ -271,7 +261,7 @@ class PT(nn.Module):
 		self.num_attempts_batch = []
 
 	def save_parameters(self):
-		self.save_obj("model_state")
+		self.save_obj(self.name)
 
 	def save_obj(self, name):
 		checkpoint = {
@@ -282,22 +272,23 @@ class PT(nn.Module):
 
 		# Save the checkpoint
 		torch.save(checkpoint, 'Torch/' + name + '.pth')
+		print(f"Model parameters saved to Torch/{self.name}.pth")
 
 
 	def check_for_params(self):
-		available = os.path.isfile("Torch/model_weights.pth")
+		available = os.path.isfile(f"Torch/{self.name}.pth")
 
 		return available
 
 	def load_checkpoint(self, name):
-		try:
-			self.model.load_state_dict(torch.load('Torch/' + name + '.pth'))
-		except (OSError, IOError) as e:
-			checkpoint = False
-			print("Can't find that checkpoint...")
-		if checkpoint != False:
-			print("Checkpoint " + name + ".pth loaded!")
-		return checkpoint
+		checkpoint = torch.load(f"Torch/{name}.pth")
+		self.model.load_state_dict(checkpoint['model_state_dict'])
+		self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+		self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+		for state in self.optimizer.state.values():
+			for k, v in state.items():
+				if isinstance(v, torch.Tensor):
+					state[k] = v.to(self.device)
 
 	def get_input_vector(self, board, color, jump_piece_number):
 		v = board.get_piece_arrays(color)

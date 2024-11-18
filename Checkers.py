@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import time
 import csv
 import pdb
+import json
 
 train = ''
 train_red = 'n'
@@ -27,6 +28,8 @@ red_illegal_total = 0
 red_move_total = 0
 black_illegal_total = 0
 black_move_total = 0
+bootstrap_version = 0
+bootstrap_average = 0
 red_win_pct_hist = []
 black_win_pct_hist = []
 red_illegal_pct_hist = []
@@ -43,24 +46,25 @@ def tally_and_print_stats(game):
 	global black_move_total
 	global red_win_pct
 	global black_win_pct
-	global red_illegal_pct
-	global black_illegal_pct
 
-	win, side, red_piece_count, black_piece_count, red_move_count, black_move_count, red_illegal_count, black_illegal_count = game.stats()
+	win, draw, side, red_piece_count, black_piece_count, red_move_count, black_move_count, red_illegal_count, black_illegal_count = game.stats()
 	red_move_total += game.red_moves
 	black_move_total += game.black_moves
-	if side == "Red":
-		red_wins += 1
+	if win:
+		if side == "Red":
+			red_wins += 1
+		else:
+			black_wins += 1
+		if side == "Red":
+			p_side = "Red  "
+		else:
+			p_side = "Black"
 	else:
-		black_wins += 1
-	if side == "Red":
-		p_side = "Red  "
-	else:
-		p_side = "Black"
+		p_side = "Draw "
 	margin = abs(red_piece_count - black_piece_count)
 	red_win_pct = (red_wins * 100)/(red_wins + black_wins)
 	black_win_pct = (black_wins * 100)/(red_wins + black_wins)
-	print("%8d" % game.number, p_side, "%.2f" % red_win_pct, "%.2f" % black_win_pct)
+	print("{:8d} {} {:.2f} {:.2f} {:4d} {:2d} {:2d}".format(game.number, p_side, red_win_pct, black_win_pct, game.moves, red_piece_count, black_piece_count))
 
 def add_point(line, x, y):
 	line.set_xdata(list(line.get_xdata()) + [x])
@@ -70,6 +74,8 @@ def add_point(line, x, y):
 def update_plots(new_data):
 	# Example: Assume new_data is a dictionary with new points for each dataset
 	add_point(lines["win_pct"], new_data["games"], new_data["win_pct"])
+	add_point(lines["boot_avg"], new_data["games"], new_data["boot_avg"])
+	add_point(lines["boot_ver"], new_data["games"], new_data["boot_ver"])
 	add_point(lines["cost_hist"], new_data["games"], new_data["cost_hist"])
 	add_point(lines["max_hist0"], new_data["games"], new_data["max_hist0"])
 	add_point(lines["max_hist1"], new_data["games"], new_data["max_hist1"])
@@ -83,12 +89,96 @@ def update_plots(new_data):
 	add_point(lines["min_hist4"], new_data["games"], new_data["min_hist4"])
 
 	# Update plot limits and redraw
-	for ax in [ax1, ax2, ax3, ax4]:
+	for ax in [ax1, ax2, ax3, ax4, ax5]:
 		ax.relim()
 		ax.autoscale_view()
 
 	plt.draw()
 	plt.pause(0.001)
+
+def save_plots(filename):
+	"""
+	Save the current plot data to a file.
+	"""
+	plot_data = {}
+	for name, line in lines.items():
+		try:
+			# Convert NumPy arrays to lists explicitly
+			x_data = line.get_xdata()
+			y_data = line.get_ydata()
+			
+			if isinstance(x_data, np.ndarray):
+				x_data = x_data.tolist()
+			if isinstance(y_data, np.ndarray):
+				y_data = y_data.tolist()
+
+			plot_data[name] = {
+				"x": x_data,
+				"y": y_data
+			}
+		except Exception as e:
+			print(f"Error processing line '{name}': {e}")
+			continue
+
+	try:
+		with open(filename, 'w') as f:
+			json.dump(plot_data, f)
+		print(f"Plots saved to {filename}")
+	except Exception as e:
+		print(f"Error saving plots to {filename}: {e}")
+
+def load_plots(filename):
+	"""
+	Load plot data from a file and update the lines.
+	"""
+	try:
+		with open(filename, 'r') as f:
+			plot_data = json.load(f)
+	except Exception as e:
+		print(f"Error loading file '{filename}': {e}")
+		return
+
+	for name, data in plot_data.items():
+		if name in lines:
+			try:
+				lines[name].set_xdata(data["x"])
+				lines[name].set_ydata(data["y"])
+			except Exception as e:
+				print(f"Error updating line '{name}': {e}")
+		else:
+			print(f"Warning: Line {name} not found in the current plot.")
+
+	# Update plot limits and redraw
+	for ax in [ax1, ax2, ax3, ax4, ax5]:
+		ax.relim()
+		ax.autoscale_view()
+
+	plt.draw()
+	print(f"Plots loaded from {filename}")
+
+
+def save_data():
+	data = {
+    "bootstrap_version": bootstrap_version,
+    "bootstrap_average": bootstrap_average,
+    "games_total": games_total
+	}
+
+	with open("data.json", "w") as f:
+		json.dump(data, f)
+
+	print("Data saved to data.json")
+
+def load_data():
+	global bootstrap_version, bootstrap_average, games_total  # Declare these as global
+	with open("data.json", "r") as f:
+		data = json.load(f)
+
+	bootstrap_version = data["bootstrap_version"]
+	bootstrap_average = data["bootstrap_average"]
+	games_total = data["games_total"]
+	print(f"Data loaded from data.json")	
+
 
 if input("Self play [Y/n]?") == "Y":
 	self_play = True
@@ -98,8 +188,8 @@ if input("Self play [Y/n]?") == "Y":
 	bootstrap_threshold = int(input("Bootstrap threshold:"))
 	import_string = 'from ' + s_model + ' import ' + s_model + ' as sm' # create self_play model import string
 	exec(import_string, globals())
-	red_model = sm()
-	black_model = sm()
+	red_model = sm("red_model")
+	black_model = sm("black_model")
 else:
 	self_play = False
 	r_model = input("Red player model:")
@@ -126,40 +216,55 @@ if input("Play game [Y/n]:") == "Y":
 		jump_rule = True
 	else:
 		jump_rule = False
-	plt.figure(1, dpi=75, figsize=(16,16))
+	plt.figure(1, dpi=75, figsize=(20,16))
 	plt.ion()
-	ax1 = plt.subplot2grid((40, 1), (0, 0), colspan=2, rowspan=8)
-	ax2 = plt.subplot2grid((40, 1), (12, 0), colspan=2, rowspan=8)
-	ax3 = plt.subplot2grid((40, 1), (22, 0), colspan=2, rowspan=8)
-	ax4 = plt.subplot2grid((40, 1), (32, 0), colspan=2, rowspan=8)
+	ax1 = plt.subplot2grid((60, 2), (0, 0), colspan=2, rowspan=8)
+	ax2 = plt.subplot2grid((60, 2), (14, 0), colspan=2, rowspan=8)
+	ax3 = plt.subplot2grid((60, 2), (26, 0), colspan=2, rowspan=8)
+	ax4 = plt.subplot2grid((60, 2), (38, 0), colspan=2, rowspan=8)
+	ax5 = plt.subplot2grid((60, 2), (50, 0), colspan=2, rowspan=8)
 	#ax1.set_title('Win Percentage')
 	#ax1.set_xlabel('Games')
 	#ax1.set_ylabel('Percentage')
 	ax1.set_title('Red Win Percentage')
 	ax1.set_xlabel('Games')
 	ax1.set_ylabel('Percentage')
-	ax3.set_title('Cost')
+	ax2.set_title('Red Win Rolling')
+	ax2.set_xlabel('Games')
+	ax2.set_ylabel('Percentage')
+	ax3.set_title('Bootstrap Version')
 	ax3.set_xlabel('Games')
-	ax3.set_ylabel('Cost')
-	ax4.set_title('Min/Max')
+	ax3.set_ylabel('Version')
+	ax4.set_title('Cost')
 	ax4.set_xlabel('Games')
-	ax4.set_ylabel('Min/Max')
+	ax4.set_ylabel('Cost')
+	ax5.set_title('Min/Max')
+	ax5.set_xlabel('Games')
+	ax5.set_ylabel('Min/Max')
 	lines = {
 		"win_pct": ax1.plot([], [], 'r-')[0],
-		"cost_hist": ax3.plot([], [], 'k-')[0],
-		"max_hist0": ax4.plot([], [], 'r-')[0],
-		"max_hist1": ax4.plot([], [], 'g-')[0],
-		"max_hist2": ax4.plot([], [], 'b-')[0],
-		"max_hist3": ax4.plot([], [], 'c-')[0],
-		"max_hist4": ax4.plot([], [], 'm-')[0],
-		"min_hist0": ax4.plot([], [], 'r--')[0],
-		"min_hist1": ax4.plot([], [], 'g--')[0],
-		"min_hist2": ax4.plot([], [], 'b--')[0],
-		"min_hist3": ax4.plot([], [], 'c--')[0],
-		"min_hist4": ax4.plot([], [], 'm--')[0]
+		"boot_avg": ax2.plot([], [], 'g-')[0],
+		"boot_ver": ax3.plot([], [], 'b-')[0],
+		"cost_hist": ax4.plot([], [], 'k-')[0],
+		"max_hist0": ax5.plot([], [], 'r-')[0],
+		"max_hist1": ax5.plot([], [], 'g-')[0],
+		"max_hist2": ax5.plot([], [], 'b-')[0],
+		"max_hist3": ax5.plot([], [], 'c-')[0],
+		"max_hist4": ax5.plot([], [], 'm-')[0],
+		"min_hist0": ax5.plot([], [], 'r--')[0],
+		"min_hist1": ax5.plot([], [], 'g--')[0],
+		"min_hist2": ax5.plot([], [], 'b--')[0],
+		"min_hist3": ax5.plot([], [], 'c--')[0],
+		"min_hist4": ax5.plot([], [], 'm--')[0]
 	}	
 
 	plt.show()
+	if red_model.from_saved:
+		load_data()
+		print(f"Bootstrap version:{bootstrap_version}")
+		print(f"Bootstrap average:{bootstrap_average}")
+		print(f"Games total:{games_total}")
+		load_plots(red_model.__class__.__name__ + ".json")
 	
 	stats = ["Create", "Play", "Train", "Main"]
 	training_stats = ["Init", "Forward", "Backward", "Bookkeeping", "Total"]
@@ -192,7 +297,6 @@ if input("Play game [Y/n]:") == "Y":
 				red_game_set.append(game) # append to list of games with red moves
 			else: #game with a black move
 				black_game_set.append(game) #append to list of games with black moves
-		games_total += train_games
 
 		batch_count += 1 # this is the first batch
 		red_X_parallel_batch = []
@@ -258,11 +362,11 @@ if input("Play game [Y/n]:") == "Y":
 						print('Illegal move')
 						one_hot_move, piece_number, move = red_model.generate_move(red_AL[:,n]) # roll the dice again
 					red_moves_parallel[:,n] = one_hot_move # log the move made
-					win, stalemate = game.make_move(move, piece_number) # have the game make the move
-					if win: # if it was a win or stalemate (game over)
+					win, draw = game.make_move(move, piece_number) # have the game make the move
+					if win: # if it was a win or draw (game over)
 						game_reward[:,game.number] = 1 # positive reward for this game because red won
 						tally_and_print_stats(game)
-					elif stalemate:
+					elif draw:
 						tally_and_print_stats(game)
 			for n, game in enumerate(black_game_set):
 				"""
@@ -276,11 +380,11 @@ if input("Play game [Y/n]:") == "Y":
 						print('Illegal move')
 						one_hot_move, piece_number, move = black_model.generate_move(black_AL[:,n]) # roll the dice again
 					black_moves_parallel[:,n] = one_hot_move # log the move made
-					win, stalemate = game.make_move(move, piece_number) # have the game make the move
-					if win: # if it was a win or stalemate (game over)
+					win, draw = game.make_move(move, piece_number) # have the game make the move
+					if win: # if it was a win or draw (game over)
 						game_reward[:,game.number] = -1 # negatie reward for this game because red lost
 						tally_and_print_stats(game)
-					elif stalemate:
+					elif draw:
 						tally_and_print_stats(game)
 			red_X_parallel_batch.append(red_X_parallel)
 			black_X_parallel_batch.append(black_X_parallel)
@@ -295,7 +399,7 @@ if input("Play game [Y/n]:") == "Y":
 			black_game_set = []
 			done = True
 			for n, game in enumerate(games):
-				if not game.win:
+				if (not game.win) and (not game.draw):
 					# print("Not done", n, game.player_color(), game.player_count(), game.other_player_color(), game.other_player_count())
 					# print(game.board.visual_state())
 					done = False
@@ -331,14 +435,24 @@ if input("Play game [Y/n]:") == "Y":
 					print("Training Black...")
 					black_player.train_model()
 					black_player.save_parameters()
+			if bootstrap_average == 0:
+				bootstrap_average = red_win_pct
+			else:
+				bootstrap_average = 0.9 * bootstrap_average + 0.1 * red_win_pct
+			games_total += train_games
+			print(f"Games total:{games_total}")
 			new_data = {
 				"games": games_total,  # Example game count
 				"win_pct": red_win_pct,
-				"cost_hist": cost,
-				"max_hist0": maximums[0], "max_hist1": maximums[1], "max_hist2": maximums[2], "max_hist3": maximums[3], "max_hist4": maximums[4],
-				"min_hist0": minimums[0], "min_hist1": minimums[1], "min_hist2": minimums[2], "min_hist3": minimums[3], "min_hist4": minimums[4],
+				"boot_avg": bootstrap_average,
+				"boot_ver": bootstrap_version,
+				"cost_hist": float(cost),
+				"max_hist0": float(maximums[0]), "max_hist1": float(maximums[1]), "max_hist2": float(maximums[2]), "max_hist3": float(maximums[3]), "max_hist4": float(maximums[4]),
+				"min_hist0": float(minimums[0]), "min_hist1": float(minimums[1]), "min_hist2": float(minimums[2]), "min_hist3": float(minimums[3]), "min_hist4": float(minimums[4]),
 			}
 			update_plots(new_data)
+			save_plots(red_model.__class__.__name__ + ".json")
+			save_data()
 			if (params["trainings"] % plot_interval == 0) or params["trainings"] < 100:
 				plt.show()
 				plt.pause(0.001)
@@ -353,7 +467,15 @@ if input("Play game [Y/n]:") == "Y":
 		train_model_end = time.time()
 		train_model_time = train_model_end - train_model_start
 		stats.append(train_model_time)
-
+		if bootstrap_average >= bootstrap_threshold:
+			print(f"Bootstrap average: {bootstrap_average}")
+			print(f"Bootstrap threshold: {bootstrap_threshold}")
+			print('BOOTSTRAP')
+			black_model.load_checkpoint('red_model')
+			black_model.save_parameters()
+			bootstrap_average = 0
+			bootstrap_version += 1
+			save_data()
 		main_loop_end = time.time()
 		main_loop_time = main_loop_end - main_loop_start
 		stats.append(main_loop_time)

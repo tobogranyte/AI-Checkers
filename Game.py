@@ -21,7 +21,8 @@ class Game:
 		self.red_moves = 0
 		self.black_attempts = 0
 		self.black_moves = 0
-		self.stalemate = False
+		self.moves_since_jump = 0
+		self.draw = False
 		self.win = False
 		self.jump_piece_number = None
 		if np.random.uniform(0, 1) >= .5: # choose a starting player at random
@@ -50,29 +51,33 @@ class Game:
 				move_array = board_legal_moves * board_move
 			self.board.move_piece(self.player.color, piece_number, move) # move the piece on the board
 			self.player.increment_move_count()
+			self.moves += 1
 			# print(self.board.visual_state())
 			# print(self.board.pieces_out())
 			# input('Resume...')
 			#game_history.write(self.board.visual_state())
 			if np.max(move_array * self.board.jump_mask) == 1: # it was a jump
-				count = self.board.piece_count(color = self.player.other_color) # get the number of opposing pieces that are still left on the board
-				if count == 0: # that was the last piece
-					self.win = True
-					self.side = self.player.color
+				self.moves_since_jump = 0
+				count = self.board.piece_count(color = self.player.other_color) # get the number of opposing pieces that are still left on the board for the other player
+				if count == 0: # that was the last piece for the other player
+					self.win = True # The game is won
+					self.side = self.player.color # by the current player
 				else: # it wasn't the last piece
-					if np.max((self.board.legal_piece_moves(color = self.player.color, piece_number = piece_number).flatten()) * np.array([1,1,0,0,0,0,1,1])) == 1:
+					if np.max((self.board.legal_piece_moves(color = self.player.color, piece_number = piece_number).flatten()) * np.array([1,1,0,0,0,0,1,1])) == 1: # There is another available jump for this piece
 						self.jump_piece_number = piece_number
-					else:
-						self.jump_piece_number = None
+					else: # There is not another jump for this piece
+						self.jump_piece_number = None # no more jump piece
 						if self.player == self.red_player:
 							self.player = self.black_player
 						else:
 							self.player = self.red_player
-					board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule)
-					if np.max(board_legal_moves) == 0:
-						self.win = True
-						self.side = self.player.other_color
-			else:
+						# other player's turn
+					board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) 
+					if np.max(board_legal_moves) == 0: # Check if next player has any legal moves, if not:
+						self.win = True # declare win
+						self.side = self.player.other_color # player other that next player wins
+			else: # it was not a jump
+				self.moves_since_jump += 1 # increment count since last jump
 				self.jump_piece_number = None
 				if self.player == self.red_player:
 					self.player = self.black_player
@@ -82,12 +87,15 @@ class Game:
 				if np.max(board_legal_moves) == 0:
 					self.win = True
 					self.side = self.player.other_color
+				elif self.moves_since_jump >= 50:
+					self.draw = True
+					self.side = self.player.other_color
 		else:  # no legal moves
 			self.win = True # declare a win
 			self.side = self.player.other_color # set the side to the other color (who won)
 		#game_history.close()
 
-		return self.win, self.stalemate
+		return self.win, self.draw
 
 	def other_player_count(self):
 		return self.board.piece_count(color = self.player.other_color)
@@ -97,7 +105,7 @@ class Game:
 
 	def stats(self):
 
-		return self.win, self.side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
+		return self.win, self.draw, self.side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
 				
 	def generate_X_mask(self):
 		X = self.player.model.get_input_vector(self.board, self.player.color, jump_piece_number = self.jump_piece_number)
