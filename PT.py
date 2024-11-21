@@ -11,15 +11,17 @@ import pdb
 
 class PT(nn.Module):
 
-	def __init__(self, name):
+	def __init__(self, name, identifier):
 		super().__init__()
 		self.name = name
+		self.identifier = identifier
 		self.set_seed(42)
 		self.batch_num = 0
 		self.layers_dims = [397, 1024, 512, 256, 128, 96] #  5-layer model
 		self.learning_rate = 0.0005
 		checkpoint = False
 		self.from_saved = False
+		self.temperature = 0.1
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		print(self.device)
 		layers = []
@@ -35,7 +37,7 @@ class PT(nn.Module):
 		if available:
 			if input("Start from saved?") == "Y":
 				# Restore variables from disk.
-				self.load_checkpoint(self.name)
+				self.load_checkpoint(self.name, self.identifier)
 
 				print("Session restored!")
 				if input("Make checkpoint from saved?") == "Y":
@@ -69,6 +71,11 @@ class PT(nn.Module):
 		self.activations = {}  # Dictionary to store activations
 		self.hook_handles = []  # List to store hook handles
 		self.model = self.model.to(self.device)
+	def update_learning_rate(self, m):
+		self.learning_rate *= m
+		for param_group in self.optimizer.param_groups:
+			param_group['lr'] = self.learning_rate
+
 
 	def set_seed(self, seed=42):
 		random.seed(seed)
@@ -107,7 +114,7 @@ class PT(nn.Module):
 		return x
 
 	def forward(self, x, mask, y=None):
-		logits = self.model(x)
+		logits = self.model(x) / self.temperature
 		masked_logits = logits.masked_fill(mask == 0, float('-inf'))  # Mask illegal moves
 		masked_probs = F.softmax(masked_logits, dim=1)  # Apply softmax only on legal moves
 		if torch.isnan(masked_probs).any():
@@ -260,10 +267,10 @@ class PT(nn.Module):
 		self.num_attempts = 0 # total number of attempts to get to a legal move
 		self.num_attempts_batch = []
 
-	def save_parameters(self):
-		self.save_obj(self.name)
+	def save_parameters(self, identifier):
+		self.save_obj(self.name, identifier)
 
-	def save_obj(self, name):
+	def save_obj(self, name, identifier):
 		checkpoint = {
 			'model_state_dict': self.model.state_dict(),
 			'optimizer_state_dict': self.optimizer.state_dict(),
@@ -271,17 +278,17 @@ class PT(nn.Module):
 		}
 
 		# Save the checkpoint
-		torch.save(checkpoint, 'Torch/' + name + '.pth')
-		print(f"Model parameters saved to Torch/{self.name}.pth")
+		torch.save(checkpoint, f"Torch_{identifier}/{self.name}.pth")
+		print(f"Model parameters saved to Torch_{identifier}/{self.name}.pth")
 
 
 	def check_for_params(self):
-		available = os.path.isfile(f"Torch/{self.name}.pth")
+		available = os.path.isfile(f"Torch_{self.identifier}/{self.name}.pth")
 
 		return available
 
-	def load_checkpoint(self, name):
-		checkpoint = torch.load(f"Torch/{name}.pth")
+	def load_checkpoint(self, name, identifier):
+		checkpoint = torch.load(f"Torch_{identifier}/{name}.pth")
 		self.model.load_state_dict(checkpoint['model_state_dict'])
 		self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 		self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])

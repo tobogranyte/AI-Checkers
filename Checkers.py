@@ -9,32 +9,16 @@ from Piece import Piece
 from Player import Player
 from Game import Game
 from shutil import copyfile
-import matplotlib.pyplot as plt
 import time
 import csv
 import pdb
 import json
+from datetime import datetime
+import os
 
-train = ''
-train_red = 'n'
-train_black = 'n'
-red_wins = 0
-black_wins = 0
-batch_count = 0
-games_total = 0
-red_win_pct = 0
-black_win_pct = 0
-red_illegal_total = 0
-red_move_total = 0
-black_illegal_total = 0
-black_move_total = 0
-bootstrap_version = 0
-bootstrap_average = 0
-red_win_pct_hist = []
-black_win_pct_hist = []
-red_illegal_pct_hist = []
-black_illegal_pct_hist = []
-params = {}
+
+def datetime_to_string(dt: datetime) -> str:
+	return dt.strftime('%Y%m%d%H%M%S')
 
 def tally_and_print_stats(game):
 	global red_wins
@@ -66,6 +50,11 @@ def tally_and_print_stats(game):
 	black_win_pct = (black_wins * 100)/(red_wins + black_wins)
 	print("{:8d} {} {:.2f} {:.2f} {:4d} {:2d} {:2d}".format(game.number, p_side, red_win_pct, black_win_pct, game.moves, red_piece_count, black_piece_count))
 
+def get_identifier(dt: datetime = None) -> str:
+	if dt is None:
+		dt = datetime.now()
+	return dt.strftime('%Y%m%d%H%M%S')
+
 def add_point(line, x, y):
 	line.set_xdata(list(line.get_xdata()) + [x])
 	line.set_ydata(list(line.get_ydata()) + [y])
@@ -94,7 +83,7 @@ def update_plots(new_data):
 		ax.autoscale_view()
 
 	plt.draw()
-	plt.pause(0.001)
+	plt.pause(0.01)
 
 def save_plots(filename):
 	"""
@@ -121,21 +110,21 @@ def save_plots(filename):
 			continue
 
 	try:
-		with open(filename, 'w') as f:
+		with open(f"Torch_{identifier}/{filename}", 'w') as f:
 			json.dump(plot_data, f)
-		print(f"Plots saved to {filename}")
+		print(f"Plots saved to Torch_{identifier}/{filename}")
 	except Exception as e:
-		print(f"Error saving plots to {filename}: {e}")
+		print(f"Error saving plots to Torch_{identifier}/{filename}: {e}")
 
 def load_plots(filename):
 	"""
 	Load plot data from a file and update the lines.
 	"""
 	try:
-		with open(filename, 'r') as f:
+		with open(f"Torch_{identifier}/{filename}", 'r') as f:
 			plot_data = json.load(f)
 	except Exception as e:
-		print(f"Error loading file '{filename}': {e}")
+		print(f"Error loading file 'Torch_{identifier}/{filename}': {e}")
 		return
 
 	for name, data in plot_data.items():
@@ -154,14 +143,15 @@ def load_plots(filename):
 		ax.autoscale_view()
 
 	plt.draw()
-	print(f"Plots loaded from {filename}")
+	print(f"Plots loaded from Torch_{identifier}/{filename}")
 
 
 def save_data():
 	data = {
     "bootstrap_version": bootstrap_version,
     "bootstrap_average": bootstrap_average,
-    "games_total": games_total
+    "games_total": games_total,
+	"identifier": identifier
 	}
 
 	with open("data.json", "w") as f:
@@ -170,15 +160,47 @@ def save_data():
 	print("Data saved to data.json")
 
 def load_data():
-	global bootstrap_version, bootstrap_average, games_total  # Declare these as global
+	global bootstrap_version, bootstrap_average, games_total, identifier  # Declare these as global
 	with open("data.json", "r") as f:
 		data = json.load(f)
 
 	bootstrap_version = data["bootstrap_version"]
 	bootstrap_average = data["bootstrap_average"]
 	games_total = data["games_total"]
+	identifier = data["identifier"]
 	print(f"Data loaded from data.json")	
 
+identifier = get_identifier()
+train = ''
+train_red = 'n'
+train_black = 'n'
+red_wins = 0
+black_wins = 0
+batch_count = 0
+games_total = 0
+red_win_pct = 0
+black_win_pct = 0
+red_illegal_total = 0
+red_move_total = 0
+black_illegal_total = 0
+black_move_total = 0
+bootstrap_version = 0
+bootstrap_average = 0
+red_win_pct_hist = []
+black_win_pct_hist = []
+red_illegal_pct_hist = []
+black_illegal_pct_hist = []
+params = {}
+resume = input("Resume [Y/n]?")
+
+if resume == "Y":
+	load_data()
+	print(f"Bootstrap version:{bootstrap_version}")
+	print(f"Bootstrap average:{bootstrap_average}")
+	print(f"Games total:{games_total}")
+	print(f"Identifier:{identifier}")
+else:
+	os.mkdir(f"Torch_{identifier}")
 
 if input("Self play [Y/n]?") == "Y":
 	self_play = True
@@ -188,8 +210,8 @@ if input("Self play [Y/n]?") == "Y":
 	bootstrap_threshold = int(input("Bootstrap threshold:"))
 	import_string = 'from ' + s_model + ' import ' + s_model + ' as sm' # create self_play model import string
 	exec(import_string, globals())
-	red_model = sm("red_model")
-	black_model = sm("black_model")
+	red_model = sm("red_model", identifier)
+	black_model = sm("black_model", identifier)
 else:
 	self_play = False
 	r_model = input("Red player model:")
@@ -204,8 +226,8 @@ else:
 	black_import_string = 'from ' + b_model + ' import ' + b_model + ' as bm' # create black model import string
 	exec(red_import_string, globals())
 	exec(black_import_string, globals())
-	red_model = rm()
-	black_model = bm()
+	red_model = rm("red_model", identifier)
+	black_model = bm("black_model", identifier)
 plot_interval = int(input("Plot interval:"))
 red_player = Player(model = red_model, color = "Red") # create the red player assigning model and color
 black_player = Player(model = black_model, color = "Black") # create the black player assigning model and color
@@ -259,11 +281,7 @@ if input("Play game [Y/n]:") == "Y":
 	}	
 
 	plt.show()
-	if red_model.from_saved:
-		load_data()
-		print(f"Bootstrap version:{bootstrap_version}")
-		print(f"Bootstrap average:{bootstrap_average}")
-		print(f"Games total:{games_total}")
+	if resume == "Y":
 		load_plots(red_model.__class__.__name__ + ".json")
 	
 	stats = ["Create", "Play", "Train", "Main"]
@@ -423,18 +441,18 @@ if input("Play game [Y/n]:") == "Y":
 				cost, params = red_model.train_model(Y, X, mask, reward)
 				minimums = params["mins"]
 				maximums = params["maxes"]
-				red_model.save_parameters()
+				red_model.save_parameters(identifier)
 			else:
 				if train_red == "Y":
 					print("Training Red...")
 					cost, params = red_model.train_model(Y = np.hstack(red_moves_parallel_batch), X = np.hstack(red_X_parallel_batch), mask = np.hstack(red_mask_parallel_batch))
 					minimums = params["mins"]
 					maximums = params["maxes"]
-					red_model.save_parameters()
+					red_model.save_parameters(identifier)
 				if train_black == "Y":
 					print("Training Black...")
 					black_player.train_model()
-					black_player.save_parameters()
+					black_player.save_parameters(identifier)
 			if bootstrap_average == 0:
 				bootstrap_average = red_win_pct
 			else:
@@ -471,10 +489,11 @@ if input("Play game [Y/n]:") == "Y":
 			print(f"Bootstrap average: {bootstrap_average}")
 			print(f"Bootstrap threshold: {bootstrap_threshold}")
 			print('BOOTSTRAP')
+			black_model.save_obj('black_model_' + str(bootstrap_version), identifier)
 			black_model.load_checkpoint('red_model')
-			black_model.save_parameters()
 			bootstrap_average = 0
 			bootstrap_version += 1
+			red_model.update_learning_rate(0.5)
 			save_data()
 		main_loop_end = time.time()
 		main_loop_time = main_loop_end - main_loop_start
