@@ -25,13 +25,6 @@ class Player:
 		else:
 			self.other_color = "Red"
 
-	def train_model(self):
-		cost, params = self.model.train()
-		return cost, params
-
-	def save_parameters(self):
-		self.model.save_parameters()
-
 	def increment_move_count(self):
 		self.move_count += 1
 

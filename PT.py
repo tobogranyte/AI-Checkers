@@ -21,7 +21,7 @@ class PT(nn.Module):
 		self.learning_rate = 0.0005
 		checkpoint = False
 		self.from_saved = False
-		self.temperature = 0.1
+		self.temperature = 1
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		print(self.device)
 		layers = []
@@ -288,7 +288,7 @@ class PT(nn.Module):
 		return available
 
 	def load_checkpoint(self, name, identifier):
-		checkpoint = torch.load(f"Torch_{identifier}/{name}.pth")
+		checkpoint = torch.load(f"Torch_{identifier}/{name}.pth", map_location=torch.device(self.device))
 		self.model.load_state_dict(checkpoint['model_state_dict'])
 		self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 		self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])

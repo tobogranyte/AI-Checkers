@@ -8,7 +8,7 @@ from Board import Board
 
 class Game:
 
-	def __init__(self, red_player, black_player, jump_rule, number):
+	def __init__(self, red_player, black_player, jump_rule, number, side = None):
 		self.board = Board() # create a new board for the game. Internal representation of the board state.
 		self.board.setup() # set up the board with pieces in starting formation
 		self.red_player = red_player # assign the red player
@@ -25,18 +25,64 @@ class Game:
 		self.draw = False
 		self.win = False
 		self.jump_piece_number = None
-		if np.random.uniform(0, 1) >= .5: # choose a starting player at random
+		if side == None:
+			if np.random.uniform(0, 1) >= .5: # choose a starting player at random
+				self.player = self.red_player
+			else:
+				self.player = self.black_player
+		elif side == "red":
 			self.player = self.red_player
 		else:
 			self.player = self.black_player
+		
 
+	def get_piece_positions(self):
+		red_pieces = {}
+		black_pieces = {}
+		for n in range(0,12):
+			rcol = (self.board.red_pieces[n].xPosition * 2) + (self.board.red_pieces[n].yPosition % 2)
+			rrow = 7 - self.board.red_pieces[n].yPosition
+			red_pieces[n] = (rrow, rcol)
+			bcol = 7 - ((self.board.black_pieces[n].xPosition * 2)  + (self.board.black_pieces[n].yPosition % 2))
+			brow = self.board.black_pieces[n].yPosition
+			black_pieces[n] = (brow, bcol)
+		return red_pieces, black_pieces
+
+	def get_legal_moves(self):
+		red_board_legal_moves = self.board.legal_moves(color = "Red", jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule)
+		print(red_board_legal_moves.reshape(1,-1))
+		black_board_legal_moves = self.board.legal_moves(color = "Black", jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule)
+		red_legal = {}
+		black_legal = {}
+		for n in range(0,12):
+			red_legal[n] = red_board_legal_moves[n*8:(n+1)*8].reshape(4,2)
+			black_legal[n] = np.flip( np.flip( black_board_legal_moves[n*8:(n+1)*8].reshape(4,2), axis = 0), axis = 1)
+		return red_legal, black_legal
+	
+	def get_in_play(self):
+		red_in_play = {}
+		black_in_play = {}
+
+		for n in range(0,12):
+			red_in_play[n] = self.board.red_pieces[n].in_play
+			black_in_play[n] = self.board.black_pieces[n].in_play
+		return red_in_play, black_in_play
+	
+	def get_kings(self):
+		red_kings = {}
+		black_kings = {}
+
+		for n in range(0,12):
+			red_kings[n] = self.board.red_pieces[n].king
+			black_kings[n] = self.board.black_pieces[n].king
+		return red_kings, black_kings
 
 	def player_color(self):
 		return self.player.color
 
 	def other_player_color(self):
 		return self.player.other_color
-
+	
 	def make_move(self, move, piece_number):
 		# print(self.player.color, "move ", piece_number, ":", move)
 		board_move = np.zeros((96), dtype = 'int') # create output vector placeholder with zeros
