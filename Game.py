@@ -40,12 +40,18 @@ class Game:
 		red_pieces = {}
 		black_pieces = {}
 		for n in range(0,12):
-			rcol = (self.board.red_pieces[n].xPosition * 2) + (self.board.red_pieces[n].yPosition % 2)
-			rrow = 7 - self.board.red_pieces[n].yPosition
-			red_pieces[n] = (rrow, rcol)
-			bcol = 7 - ((self.board.black_pieces[n].xPosition * 2)  + (self.board.black_pieces[n].yPosition % 2))
-			brow = self.board.black_pieces[n].yPosition
-			black_pieces[n] = (brow, bcol)
+			if self.board.red_pieces[n].in_play:
+				rcol = (self.board.red_pieces[n].xPosition * 2) + (self.board.red_pieces[n].yPosition % 2)
+				rrow = 7 - self.board.red_pieces[n].yPosition
+				red_pieces[n] = (rrow, rcol)
+			else:
+				red_pieces[n] = (-1, -1)
+			if self.board.black_pieces[n].in_play:
+				bcol = 7 - ((self.board.black_pieces[n].xPosition * 2)  + (self.board.black_pieces[n].yPosition % 2))
+				brow = self.board.black_pieces[n].yPosition
+				black_pieces[n] = (brow, bcol)
+			else:
+				black_pieces[n] = (-1, -1)
 		return red_pieces, black_pieces
 
 	def get_legal_moves(self):
