@@ -47,34 +47,34 @@ def draw_board():
 def get_piece_positions(game):
 	global red_pieces, black_pieces
 	red_pieces, black_pieces = game.get_piece_positions()
-	print("red_pieces")
-	print(red_pieces)
-	print("black_pieces")
-	print(black_pieces)
+	#print("red_pieces")
+	#print(red_pieces)
+	#print("black_pieces")
+	#print(black_pieces)
 
 def get_legal_moves(game):
 	global red_legal, black_legal
 	red_legal, black_legal = game.get_legal_moves()
-	print("red_legal")
-	print(red_legal)
-	print("black_legal")
-	print(black_legal)
+	#print("red_legal")
+	#print(red_legal)
+	#print("black_legal")
+	#print(black_legal)
 
 def get_in_play(game):
 	global red_in_play, black_in_play
 	red_in_play, black_in_play = game.get_in_play()
-	print("red_in_play")
-	print(red_in_play)
-	print("black_in_play")
-	print(black_in_play)
+	#print("red_in_play")
+	#print(red_in_play)
+	#print("black_in_play")
+	#print(black_in_play)
 
 def get_kings(game):
 	global red_kings, black_kings
 	red_kings, black_kings = game.get_kings()
-	print("red_kings")
-	print(red_kings)
-	print("black_kings")
-	print(black_kings)
+	#print("red_kings")
+	#print(red_kings)
+	#print("black_kings")
+	#print(black_kings)
 
 def update_game_state(game):
 	get_piece_positions(game)
@@ -155,8 +155,8 @@ def get_square_from_click(pos):
 def red_piece_occupied(row, col):
 	for n in range(0, 12):
 		if red_pieces[n] == (row, col):
-			print(n)
-			print(red_legal[n])
+			#print(n)
+			#print(red_legal[n])
 			if np.max(red_legal[n]) == 1:
 				return True, True, n
 			else:
@@ -332,7 +332,7 @@ while running:
 
 						# Convert to row, col
 						row, col = get_square_from_click((x, y))
-						print(f"Clicked square: row={row}, col={col}")
+						#print(f"Clicked square: row={row}, col={col}")
 						
 						if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
 							occupied, has_legal, number = red_piece_occupied(row, col)
@@ -348,8 +348,8 @@ while running:
 				animate_move = True
 				selected_piece, game_move, row, col = get_black_move(game)
 				iterate_x, iterate_y, end_x, end_y, x_step, y_step = get_animation_path(black_pieces[selected_piece][0], black_pieces[selected_piece][1], row, col)
-				print("game_move")
-				print(game_move)
+				#print("game_move")
+				#print(game_move)
 
 			draw_board()
 
