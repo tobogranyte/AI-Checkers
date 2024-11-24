@@ -310,8 +310,8 @@ while running:
 		if animate_move:
 			draw_board()
 			draw_pieces()
-			pygame.display.flip()
 			animate_move = animate_piece()
+			pygame.display.flip()
 			if not animate_move:
 				if current_color == "Red":
 					game_move = get_game_move(row, col)
@@ -319,8 +319,8 @@ while running:
 				update_game_state(game)
 				draw_board()
 				draw_pieces()
-				pygame.display.flip()
 				piece_selected = False
+				pygame.display.flip()
 		else:
 			if current_color == "Red":
 				for event in pygame.event.get():
