@@ -489,8 +489,8 @@ if input("Play game [Y/n]:") == "Y":
 			print(f"Bootstrap average: {bootstrap_average}")
 			print(f"Bootstrap threshold: {bootstrap_threshold}")
 			print('BOOTSTRAP')
-			black_model.save_obj('black_model_' + str(bootstrap_version), identifier)
-			black_model.load_checkpoint('red_model')
+			black_model.save_obj(f"black_model_{bootstrap_version}", identifier)
+			black_model.load_checkpoint('red_model', identifier)
 			bootstrap_average = 0
 			bootstrap_version += 1
 			red_model.update_learning_rate(0.5)
