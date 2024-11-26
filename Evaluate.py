@@ -61,7 +61,7 @@ red_model = sm("red_model", identifier)
 black_model = sm("black_model", identifier)
 red_player = Player(model = red_model, color = "Red") # create the red player assigning model and color
 black_player = Player(model = black_model, color = "Black") # create the black player assigning model and color
-stats = ["Model Temperature {red_model.temperature}"]
+stats = [f"Model Temperature {red_model.temperature}"]
 write_stats(stats, identifier)
 stats = ['','','Red']
 write_stats(stats, identifier)
@@ -69,13 +69,13 @@ write_stats(stats, identifier)
 stats = ['', '']
 for black_version in range(0, bootstrap_version):
 	stats.append(black_version)
-	write_stats(stats, identifier)
+write_stats(stats, identifier)
 
 for black_version in range(0, bootstrap_version):
 	if black_version == 0:
-		stats = ['Black', '']
+		stats = ['Black', black_version]
 	else:
-		stats = ['', '']
+		stats = ['', black_version]
 	for red_version in range(0, bootstrap_version):
 		red_wins = 0
 		black_wins = 0
