@@ -90,7 +90,10 @@ for black_version in range(0, bootstrap_version):
 		games = []
 		done = False
 		for count in range(0,1000): # create a batch-sized array of games and "start" each game
-			game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = count)
+			if count%2 == 0:
+				game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = count, side = "red")
+			else:
+				game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = count, side = "black")	
 			"""
 			Create a game. This creates a game, setting all game parameters and also choosing the starting
 			player (red or black) at random.
