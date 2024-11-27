@@ -160,11 +160,11 @@ class Game:
 		return self.win, self.draw, self.side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
 				
 	def generate_X_mask(self):
-		X = self.player.model.get_input_vector(self.board, self.player.color, jump_piece_number = self.jump_piece_number)
+		board_input, pieces_input = self.player.model.get_input_vector(self.board, self.player.color, jump_piece_number = self.jump_piece_number)
 		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves (48,) for current board position (0: illegal, 1:legal, 2:jump-legal)
 		# Can't have this be 0 because the next line divides by zero
 
-		return X, board_legal_moves
+		return board_input, pieces_input, board_legal_moves
 
 
 	def static_playtest(self):
