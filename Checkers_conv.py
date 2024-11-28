@@ -357,7 +357,7 @@ if input("Play game [Y/n]:") == "Y":
 				mask: (96) Illegal moves 0, Legal moves 1
 				"""
 				red_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
-				red_board_parallel[n, :, :, :] = pieces
+				red_board_parallel[n, :, :, :] = board
 				red_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
 				red_game_numbers[:,n] = game.number # the game number in the batch of games being played
 			for n, game in enumerate(black_game_set):
@@ -367,12 +367,15 @@ if input("Play game [Y/n]:") == "Y":
 				Also for each game, get the Y (legal moves) and add it to the black_Y_batch.
 				"""
 				board, pieces, mask = game.generate_X_mask()
-				black_board_parallel[n, :, :, :] = pieces
+				black_board_parallel[n, :, :, :] = board
 				black_pieces_parallel[:,n] = pieces
 				black_mask_parallel[:,n] = mask
 				black_game_numbers[:,n] = game.number
-			red_AL = red_model.forward_pass(red_pieces_parallel, red_mask_parallel) # get matrix of vector probabilities for the next move in all red games
-			black_AL = black_model.forward_pass(black_pieces_parallel, black_mask_parallel) # get matrix of vector probabilities for the next move in all black games
+			if len(red_game_set) > 0:
+				red_AL = red_model.forward_pass(red_board_parallel, red_pieces_parallel, red_mask_parallel) # get matrix of vector probabilities for the next move in all red games
+
+			if len(black_game_set) > 0:
+				black_AL = black_model.forward_pass(black_board_parallel, black_pieces_parallel, black_mask_parallel) # get matrix of vector probabilities for the next move in all black games
 
 			for n, game in enumerate(red_game_set):
 				"""
@@ -412,18 +415,21 @@ if input("Play game [Y/n]:") == "Y":
 						tally_and_print_stats(game)
 			red_pieces_parallel_batch.append(red_pieces_parallel)
 			black_pieces_parallel_batch.append(black_pieces_parallel)
+			red_board_parallel_batch.append(red_board_parallel)
+			black_board_parallel_batch.append(black_board_parallel)
 			red_mask_parallel_batch.append(red_mask_parallel)
 			black_mask_parallel_batch.append(black_mask_parallel)
 			red_moves_parallel_batch.append(red_moves_parallel)
 			black_moves_parallel_batch.append(black_moves_parallel)
 			black_game_numbers_batch.append(black_game_numbers)
 			red_game_numbers_batch.append(red_game_numbers)
-
 			red_game_set = []
 			black_game_set = []
+			number = None
 			done = True
 			for n, game in enumerate(games):
 				if (not game.win) and (not game.draw):
+					number = game.number
 					# print("Not done", n, game.player_color(), game.player_count(), game.other_player_color(), game.other_player_count())
 					# print(game.board.visual_state())
 					done = False
@@ -431,7 +437,7 @@ if input("Play game [Y/n]:") == "Y":
 						red_game_set.append(game) # append to list of games with red moves
 					else: #game with a black move
 						black_game_set.append(game) #append to list of games with black moves
-		play_games_end = time.time()
+			play_games_end = time.time()
 		play_games_time = play_games_end - play_games_start
 		stats.append(play_games_time)
 
@@ -441,10 +447,16 @@ if input("Play game [Y/n]:") == "Y":
 				print("Training model...")
 				print("Training Red...")
 				Y = np.hstack(red_moves_parallel_batch)
-				X = np.hstack(red_pieces_parallel_batch)
+				pieces = np.hstack(red_pieces_parallel_batch)
+				try:
+					board = np.vstack(red_board_parallel_batch)
+				except Exception as e:
+					import traceback
+					traceback.print_exc()
+					pdb.set_trace()
 				mask = np.hstack(red_mask_parallel_batch)
 				reward = game_reward[:, np.hstack(red_game_numbers_batch)]
-				cost, params = red_model.train_model(Y, X, mask, reward)
+				cost, params = red_model.train_model(Y, board, pieces, mask, reward)
 				minimums = params["mins"]
 				maximums = params["maxes"]
 				red_model.save_parameters(identifier)
@@ -456,6 +468,9 @@ if input("Play game [Y/n]:") == "Y":
 					maximums = params["maxes"]
 					red_model.save_parameters(identifier)
 				if train_black == "Y":
+					print("Training Black...")
+					black_player.train_model()
+					black_player.save_parameters(identifier)
 			if bootstrap_average == 0:
 				bootstrap_average = red_win_pct
 			else:
@@ -493,10 +508,10 @@ if input("Play game [Y/n]:") == "Y":
 			print(f"Bootstrap threshold: {bootstrap_threshold}")
 			print('BOOTSTRAP')
 			black_model.save_obj('black_model_' + str(bootstrap_version), identifier)
-			black_model.load_checkpoint('red_model')
+			black_model.load_checkpoint('red_model', identifier)
 			bootstrap_average = 0
 			bootstrap_version += 1
-			red_model.update_learning_rate(0.5)
+			red_model.update_learning_rate(0.75)
 			save_data()
 		main_loop_end = time.time()
 		main_loop_time = main_loop_end - main_loop_start

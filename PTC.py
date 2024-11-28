@@ -17,7 +17,7 @@ class PTC(nn.Module):
 		self.identifier = identifier
 		self.set_seed(42)
 		self.batch_num = 0
-		self.learning_rate = 0.0005
+		self.learning_rate = 0.001
 		checkpoint = False
 		self.from_saved = False
 		self.temperature = 1
@@ -27,6 +27,7 @@ class PTC(nn.Module):
 		layers = []
 		self.conv_3x3 = nn.Conv2d(4, 16, kernel_size=3, stride=1, padding=1)
 		self.conv_5x5 = nn.Conv2d(4, 16, kernel_size=5, stride=1, padding=2)
+		self.layer_norm = nn.LayerNorm([16, 8, 4])
 		for n in range(len(self.layers_dims) - 2):
 			layers.append(nn.Linear(self.layers_dims[n], self.layers_dims[n+1]))
 			layers.append(nn.LayerNorm(self.layers_dims[n+1]))
@@ -77,8 +78,8 @@ class PTC(nn.Module):
 
 	def forward(self, board, pieces, mask, y=None):
 		# Apply convolutions and ReLU
-		out_3x3 = F.relu(self.conv_3x3(board))  # Shape: (batch_size, 16, 8, 4)
-		out_5x5 = F.relu(self.conv_5x5(board))  # Shape: (batch_size, 16, 8, 4)
+		out_3x3 = F.relu(self.layer_norm(self.conv_3x3(board)))  # Shape: (batch_size, 16, 8, 4)
+		out_5x5 = F.relu(self.layer_norm(self.conv_5x5(board)))  # Shape: (batch_size, 16, 8, 4)
 
 		# Concatenate along channel dimension
 		out_conv = torch.cat((out_3x3, out_5x5), dim=1)  # Shape: (batch_size, 32, 8, 4)
@@ -130,6 +131,7 @@ class PTC(nn.Module):
 
 	def forward_pass(self, board, pieces, mask):
 		board = torch.from_numpy(np.array(board, dtype=np.float32))
+		board = board.to(self.device)
 		pieces = self.convert(pieces)
 		pieces = pieces.to(self.device)
 		mask = self.convert(mask)
@@ -137,6 +139,7 @@ class PTC(nn.Module):
 		self.eval()
 		with torch.no_grad():
 			x = self(board, pieces, mask)
+			
 		x = self.deconvert(x)
 		return x
 
@@ -148,7 +151,7 @@ class PTC(nn.Module):
 
 		return one_hot_move, piece_number, move
 
-	def train_model(self, Y, X, mask, reward):
+	def train_model(self, Y, board, pieces, mask, reward):
 		"""
 		y: parallel set of unit-normalized legal move vectors to calculate cost.
 		x: parallel set of input vectors.
@@ -164,8 +167,10 @@ class PTC(nn.Module):
 		params = {}
 		self.add_hooks()
 		self.batch_num += 1
-		X = self.convert(X)
-		X = X.to(self.device)
+		pieces = self.convert(pieces)
+		pieces = pieces.to(self.device)
+		board = torch.from_numpy(np.array(board, dtype=np.float32))
+		board = board.to(self.device)
 		Y = self.convert(Y)
 		Y = Y.to(self.device)
 		mask_t = self.convert(mask)
@@ -176,7 +181,7 @@ class PTC(nn.Module):
 		train_init_time = train_init_end - train_init_start
 		training_stats.append(train_init_time)
 		forward_prop_start = time.time()
-		X = self(X, mask_t)
+		X = self(board, pieces, mask_t)
 		forward_prop_end = time.time()
 		forward_prop_time = forward_prop_end - forward_prop_start
 		training_stats.append(forward_prop_time)
