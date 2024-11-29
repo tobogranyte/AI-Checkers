@@ -66,6 +66,8 @@ def update_plots(new_data):
 	add_point(lines["boot_avg"], new_data["games"], new_data["boot_avg"])
 	add_point(lines["boot_ver"], new_data["games"], new_data["boot_ver"])
 	add_point(lines["cost_hist"], new_data["games"], new_data["cost_hist"])
+	add_point(lines["cost_win_hist"], new_data["games"], new_data["cost_win_hist"])
+	add_point(lines["cost_loss_hist"], new_data["games"], new_data["cost_loss_hist"])
 	add_point(lines["max_hist0"], new_data["games"], new_data["max_hist0"])
 	add_point(lines["max_hist1"], new_data["games"], new_data["max_hist1"])
 	add_point(lines["max_hist2"], new_data["games"], new_data["max_hist2"])
@@ -78,7 +80,7 @@ def update_plots(new_data):
 	add_point(lines["min_hist4"], new_data["games"], new_data["min_hist4"])
 
 	# Update plot limits and redraw
-	for ax in [ax1, ax2, ax3, ax4, ax5]:
+	for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax6]:
 		ax.relim()
 		ax.autoscale_view()
 
@@ -138,7 +140,7 @@ def load_plots(filename):
 			print(f"Warning: Line {name} not found in the current plot.")
 
 	# Update plot limits and redraw
-	for ax in [ax1, ax2, ax3, ax4, ax5]:
+	for ax in [ax1, ax2, ax3, ax4, ax5, ax6]:
 		ax.relim()
 		ax.autoscale_view()
 
@@ -240,11 +242,12 @@ if input("Play game [Y/n]:") == "Y":
 		jump_rule = False
 	plt.figure(1, dpi=75, figsize=(20,16))
 	plt.ion()
-	ax1 = plt.subplot2grid((60, 2), (0, 0), colspan=2, rowspan=8)
-	ax2 = plt.subplot2grid((60, 2), (14, 0), colspan=2, rowspan=8)
-	ax3 = plt.subplot2grid((60, 2), (26, 0), colspan=2, rowspan=8)
-	ax4 = plt.subplot2grid((60, 2), (38, 0), colspan=2, rowspan=8)
-	ax5 = plt.subplot2grid((60, 2), (50, 0), colspan=2, rowspan=8)
+	ax1 = plt.subplot2grid((70, 2), (0, 0), colspan=2, rowspan=8)
+	ax2 = plt.subplot2grid((70, 2), (14, 0), colspan=2, rowspan=8)
+	ax3 = plt.subplot2grid((70, 2), (26, 0), colspan=2, rowspan=8)
+	ax4 = plt.subplot2grid((70, 2), (38, 0), colspan=2, rowspan=8)
+	ax5 = plt.subplot2grid((70, 2), (50, 0), colspan=2, rowspan=8)
+	ax6 = plt.subplot2grid((70, 2), (62, 0), colspan=2, rowspan=8)
 	#ax1.set_title('Win Percentage')
 	#ax1.set_xlabel('Games')
 	#ax1.set_ylabel('Percentage')
@@ -260,24 +263,29 @@ if input("Play game [Y/n]:") == "Y":
 	ax4.set_title('Cost')
 	ax4.set_xlabel('Games')
 	ax4.set_ylabel('Cost')
-	ax5.set_title('Min/Max')
+	ax5.set_title('Win/Loss Cost')
 	ax5.set_xlabel('Games')
-	ax5.set_ylabel('Min/Max')
+	ax5.set_ylabel('Win/Loss Cost')
+	ax6.set_title('Min/Max')
+	ax6.set_xlabel('Games')
+	ax6.set_ylabel('Min/Max')
 	lines = {
 		"win_pct": ax1.plot([], [], 'r-')[0],
 		"boot_avg": ax2.plot([], [], 'g-')[0],
 		"boot_ver": ax3.plot([], [], 'b-')[0],
 		"cost_hist": ax4.plot([], [], 'k-')[0],
-		"max_hist0": ax5.plot([], [], 'r-')[0],
-		"max_hist1": ax5.plot([], [], 'g-')[0],
-		"max_hist2": ax5.plot([], [], 'b-')[0],
-		"max_hist3": ax5.plot([], [], 'c-')[0],
-		"max_hist4": ax5.plot([], [], 'm-')[0],
-		"min_hist0": ax5.plot([], [], 'r--')[0],
-		"min_hist1": ax5.plot([], [], 'g--')[0],
-		"min_hist2": ax5.plot([], [], 'b--')[0],
-		"min_hist3": ax5.plot([], [], 'c--')[0],
-		"min_hist4": ax5.plot([], [], 'm--')[0]
+		"cost_win_hist": ax5.plot([], [], 'g-')[0],
+		"cost_loss_hist": ax5.plot([], [], 'r-')[0],
+		"max_hist0": ax6.plot([], [], 'r-')[0],
+		"max_hist1": ax6.plot([], [], 'g-')[0],
+		"max_hist2": ax6.plot([], [], 'b-')[0],
+		"max_hist3": ax6.plot([], [], 'c-')[0],
+		"max_hist4": ax6.plot([], [], 'm-')[0],
+		"min_hist0": ax6.plot([], [], 'r--')[0],
+		"min_hist1": ax6.plot([], [], 'g--')[0],
+		"min_hist2": ax6.plot([], [], 'b--')[0],
+		"min_hist3": ax6.plot([], [], 'c--')[0],
+		"min_hist4": ax6.plot([], [], 'm--')[0]
 	}	
 
 	plt.show()
@@ -334,8 +342,8 @@ if input("Play game [Y/n]:") == "Y":
 		while not done:
 			red_pieces_parallel = np.zeros((409, len(red_game_set))) # X values for all games where it's a red move (column vector * number of red move games)
 			black_pieces_parallel = np.zeros((409, len(black_game_set))) # X values for all games where it's a black move (column vector * number of black move games)
-			red_board_parallel = np.zeros((len(red_game_set), 4, 8, 4)) # X values for all games where it's a red move (column vector * number of red move games)
-			black_board_parallel = np.zeros((len(black_game_set), 4, 8, 4)) # X values for all games where it's a black move (column vector * number of black move games)
+			red_board_parallel = np.zeros((len(red_game_set), 4, 8, 4)) 
+			black_board_parallel = np.zeros((len(black_game_set), 4, 8, 4)) 
 			red_Y_parallel = np.zeros((96, len(red_game_set))) # unit normalized legal moves label
 			black_Y_parallel = np.zeros((96, len(black_game_set))) # unit normalized legal moves label
 			red_mask_parallel = np.zeros((96, len(red_game_set))) # non-normalized legal moves label
@@ -456,7 +464,7 @@ if input("Play game [Y/n]:") == "Y":
 					pdb.set_trace()
 				mask = np.hstack(red_mask_parallel_batch)
 				reward = game_reward[:, np.hstack(red_game_numbers_batch)]
-				cost, params = red_model.train_model(Y, board, pieces, mask, reward)
+				cost, cost_win, cost_loss, params = red_model.train_model(Y, board, pieces, mask, reward)
 				minimums = params["mins"]
 				maximums = params["maxes"]
 				red_model.save_parameters(identifier)
@@ -483,6 +491,8 @@ if input("Play game [Y/n]:") == "Y":
 				"boot_avg": bootstrap_average,
 				"boot_ver": bootstrap_version,
 				"cost_hist": float(cost),
+				"cost_win_hist": float(cost_win),
+				"cost_loss_hist": float(cost_loss),
 				"max_hist0": float(maximums[0]), "max_hist1": float(maximums[1]), "max_hist2": float(maximums[2]), "max_hist3": float(maximums[3]), "max_hist4": float(maximums[4]),
 				"min_hist0": float(minimums[0]), "min_hist1": float(minimums[1]), "min_hist2": float(minimums[2]), "min_hist3": float(minimums[3]), "min_hist4": float(minimums[4]),
 			}
@@ -511,7 +521,7 @@ if input("Play game [Y/n]:") == "Y":
 			black_model.load_checkpoint('red_model', identifier)
 			bootstrap_average = 0
 			bootstrap_version += 1
-			red_model.update_learning_rate(0.75)
+			red_model.update_learning_rate(0.5)
 			save_data()
 		main_loop_end = time.time()
 		main_loop_time = main_loop_end - main_loop_start

@@ -59,6 +59,8 @@ import_string = 'from ' + s_model + ' import ' + s_model + ' as sm' # create sel
 exec(import_string, globals())
 red_model = sm("red_model", identifier)
 black_model = sm("black_model", identifier)
+red_model.temperature = 0.25
+black_model.temperature = 0.25
 red_player = Player(model = red_model, color = "Red") # create the red player assigning model and color
 black_player = Player(model = black_model, color = "Black") # create the black player assigning model and color
 stats = [f"Model Temperature {red_model.temperature}"]
@@ -77,6 +79,7 @@ for black_version in range(0, bootstrap_version):
 	else:
 		stats = ['', black_version]
 	for red_version in range(0, bootstrap_version):
+		print(f"Black version {black_version} vs Red version {red_version}")
 		red_wins = 0
 		black_wins = 0
 		red_illegal_total = 0
@@ -106,24 +109,30 @@ for black_version in range(0, bootstrap_version):
 			else: #game with a black move
 				black_game_set.append(game) #append to list of games with black moves
 		while not done:
-			red_X_parallel = np.zeros((red_model.layers_dims[0], len(red_game_set))) # X values for all games where it's a red move (column vector * number of red move games)
-			black_X_parallel = np.zeros((black_model.layers_dims[0], len(black_game_set))) # X values for all games where it's a black move (column vector * number of black move games)
+			red_pieces_parallel = np.zeros((409, len(red_game_set))) # X values for all games where it's a red move (column vector * number of red move games)
+			black_pieces_parallel = np.zeros((409, len(black_game_set))) # X values for all games where it's a black move (column vector * number of black move games)
+			red_board_parallel = np.zeros((len(red_game_set), 4, 8, 4)) 
+			black_board_parallel = np.zeros((len(black_game_set), 4, 8, 4)) 
 			red_mask_parallel = np.zeros((96, len(red_game_set))) # non-normalized legal moves label
 			black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized legal moves label
 			black_game_numbers = np.zeros((1, len(black_game_set)), dtype=int)
 			red_game_numbers = np.zeros((1, len(red_game_set)), dtype=int)
 			for n, game in enumerate(red_game_set):
-				X, mask = game.generate_X_mask()
-				red_X_parallel[:,n] = X # insert X as a column to the parallel input
+				board, pieces, mask = game.generate_X_mask()
+				red_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
+				red_board_parallel[n, :, :, :] = board
 				red_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
 				red_game_numbers[:,n] = game.number # the game number in the batch of games being played
 			for n, game in enumerate(black_game_set):
-				X, mask = game.generate_X_mask()
-				black_X_parallel[:,n] = X # insert X as a column to the parallel input
+				board, pieces, mask = game.generate_X_mask()
+				black_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
+				black_board_parallel[n, :, :, :] = board
 				black_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
 				black_game_numbers[:,n] = game.number # the game number in the batch of games being played
-			red_AL = red_model.forward_pass(red_X_parallel, red_mask_parallel) # get matrix of vector probabilities for the next move in all red games
-			black_AL = black_model.forward_pass(black_X_parallel, black_mask_parallel) # get matrix of vector probabilities for the next move in all black games
+			if len(red_game_set) > 0:
+				red_AL = red_model.forward_pass(red_board_parallel, red_pieces_parallel, red_mask_parallel) # get matrix of vector probabilities for the next move in all red games
+			if len(black_game_set) > 0:
+				black_AL = black_model.forward_pass(black_board_parallel, black_pieces_parallel, black_mask_parallel) # get matrix of vector probabilities for the next move in all black games
 			for n, game in enumerate(red_game_set):
 				one_hot_move, piece_number, move = red_model.generate_move(red_AL[:,n]) # make a dice-roll attempt
 				win, draw = game.make_move(move, piece_number) # have the game make the move

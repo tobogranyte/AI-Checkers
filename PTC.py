@@ -187,8 +187,14 @@ class PTC(nn.Module):
 		training_stats.append(forward_prop_time)
 		backward_prop_start = time.time()
 		log_prob = torch.log(X + epsilon)
-		cost = - reward * log_prob[Y == 1]
-		cost = cost.sum()
+		reward_win = torch.where(reward == 1, 1, 0)
+		reward_loss = torch.where(reward == -1, -1, 0)
+		log_prob_move = log_prob[Y == 1]
+		cost_win = - reward_win * log_prob_move
+		cost_loss = - reward_loss * log_prob_move
+		cost_win = cost_win.sum()
+		cost_loss = cost_loss.sum()
+		cost = cost_win.sum() + cost_loss.sum()
 		self.optimizer.zero_grad(set_to_none=True)
 		cost.backward()
 		self.optimizer.step()
@@ -226,7 +232,7 @@ class PTC(nn.Module):
 			writer = csv.writer(file)
 			writer.writerow(training_stats)  # Write the list as a new row
 
-		return cost.detach().cpu().numpy().astype(np.float64), params
+		return cost.detach().cpu().numpy().astype(np.float64), cost_win.detach().cpu().numpy().astype(np.float64), cost_loss.detach().cpu().numpy().astype(np.float64), params
 
 
 	def _save_activation(self, name):

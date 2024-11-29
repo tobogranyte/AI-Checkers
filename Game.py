@@ -139,7 +139,7 @@ class Game:
 				if np.max(board_legal_moves) == 0:
 					self.win = True
 					self.side = self.player.other_color
-				elif self.moves_since_jump >= 200:
+				elif self.moves_since_jump >= 400:
 					self.draw = True
 					self.side = self.player.other_color
 		else:  # no legal moves

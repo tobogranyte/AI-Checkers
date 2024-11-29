@@ -283,7 +283,7 @@ exec(import_string, globals())
 black_model = sm("black_model", identifier)
 black_player = Player(model = black_model, color = "Black") # create the black player assigning model and color
 '''
-identifier = None
+identifier = input('Identifier')
 bootstrap_version = 7
 jump_rule = True
 s_model = "PTC"
