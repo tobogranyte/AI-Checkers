@@ -9,7 +9,7 @@ import time
 import csv
 import pdb
 
-class PTCD(nn.Module):
+class PTCP(nn.Module):
 
 	def __init__(self, name, identifier):
 		super().__init__()
@@ -29,6 +29,8 @@ class PTCD(nn.Module):
 		self.conv_3x3 = nn.Conv2d(4, 16, kernel_size=3, stride=1, padding=1)
 		self.conv_5x5 = nn.Conv2d(4, 16, kernel_size=5, stride=1, padding=2)
 		self.layer_norm = nn.LayerNorm([16, 8, 4])
+		self.dropout = nn.Dropout(dropout_prob)
+		self.projection = nn.Linear(self.layers_dims[0], self.layers_dims[0])
 		for n in range(len(self.layers_dims) - 2):
 			layers.append(nn.Linear(self.layers_dims[n], self.layers_dims[n+1]))
 			layers.append(nn.LayerNorm(self.layers_dims[n+1]))
@@ -92,7 +94,10 @@ class PTCD(nn.Module):
 		# Concatenate with the direct input vector
 		combined_input = torch.cat((out_conv_flat, pieces), dim=1)  # Shape: (batch_size, 32*8*4 + input_size)
 
-		logits = self.feed_forward(combined_input) / self.temperature
+		projected_input = self.projection(combined_input)
+		projected_input = self.dropout(projected_input)
+
+		logits = self.feed_forward(projected_input) / self.temperature
 		masked_logits = logits.masked_fill(mask == 0, float('-inf'))  # Mask illegal moves
 		masked_probs = F.softmax(masked_logits, dim=1)  # Apply softmax only on legal moves
 		if torch.isnan(masked_probs).any():
@@ -118,6 +123,11 @@ class PTCD(nn.Module):
 			torch.nn.init.xavier_uniform_(module.weight)
 			if module.bias is not None:
 				torch.nn.init.zeros_(module.bias)
+			elif isinstance(module, nn.Conv2d):
+				# Kaiming initialization for convolutional layers
+				torch.nn.init.kaiming_normal_(module.weight, mode='fan_in', nonlinearity='relu')
+				if module.bias is not None:
+					torch.nn.init.zeros_(module.bias)
 
 	def add_hooks(self):
 		# Register hooks and store handles
