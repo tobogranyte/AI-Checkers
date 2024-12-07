@@ -214,11 +214,14 @@ if input("Self play [Y/n]?") == "Y":
 	import_string = 'from ' + s_model + ' import ' + s_model + ' as sm' # create self_play model import string
 	exec(import_string, globals())
 	red_model = sm("red_model", identifier)
+	red_model_lr = red_model.learning_rate
 	black_model = sm("black_model", identifier)
-	black_model.save_obj('black_model_' + str(bootstrap_version), identifier)
 
 	if resume == "Y":
-		black_model.load_checkpoint(f'black_model_{int(bootstrap_version) - 1}', identifier)
+		black_model.load_checkpoint(f'black_model_{bootstrap_version}', identifier)
+	else:
+		black_model.save_obj('black_model_' + str(bootstrap_version), identifier)
+
 else:
 	self_play = False
 	r_model = input("Red player model:")
@@ -339,6 +342,8 @@ if input("Play game [Y/n]:") == "Y":
 		black_moves_parallel_batch = []
 		black_game_numbers_batch = []
 		red_game_numbers_batch = []
+		black_move_numbers_batch = []
+		red_move_numbers_batch = []
 		create_games_end = time.time()
 		create_games_time = create_games_end - create_games_start
 		stats.append(create_games_time)
@@ -356,18 +361,16 @@ if input("Play game [Y/n]:") == "Y":
 			black_moves_parallel = np.zeros((96, len(black_game_set)))
 			black_game_numbers = np.zeros((1, len(black_game_set)), dtype=int)
 			red_game_numbers = np.zeros((1, len(red_game_set)), dtype=int)
+			black_move_numbers = np.zeros((1, len(black_game_set)), dtype=int)
+			red_move_numbers = np.zeros((1, len(red_game_set)), dtype=int)
 			for n, game in enumerate(red_game_set):
 				"""
 				Step through each game in the red training batch. For each game, get the input vector (X) from
 				the model and add it to the appropriate location in the red_X_batch.
 				Also for each game, get the Y (legal moves) and add it to the red_Y_batch.
 				"""
+				red_move_numbers[:,n] = game.red_moves
 				board, pieces, mask = game.generate_X_mask()
-				"""
-				X: (397) Input vector for the model
-				Y: (96) Unit normalized vector with illegal moves all zero and legal moves summing to 1
-				mask: (96) Illegal moves 0, Legal moves 1
-				"""
 				red_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
 				red_board_parallel[n, :, :, :] = board
 				red_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
@@ -378,6 +381,7 @@ if input("Play game [Y/n]:") == "Y":
 				the model and add it to the appropriate location in the black_X_batch.
 				Also for each game, get the Y (legal moves) and add it to the black_Y_batch.
 				"""
+				black_move_numbers[:,n] = game.black_moves
 				board, pieces, mask = game.generate_X_mask()
 				black_board_parallel[n, :, :, :] = board
 				black_pieces_parallel[:,n] = pieces
@@ -435,6 +439,8 @@ if input("Play game [Y/n]:") == "Y":
 			black_moves_parallel_batch.append(black_moves_parallel)
 			black_game_numbers_batch.append(black_game_numbers)
 			red_game_numbers_batch.append(red_game_numbers)
+			black_move_numbers_batch.append(black_move_numbers)
+			red_move_numbers_batch.append(red_move_numbers)
 			red_game_set = []
 			black_game_set = []
 			number = None
@@ -460,14 +466,9 @@ if input("Play game [Y/n]:") == "Y":
 				print("Training Red...")
 				Y = np.hstack(red_moves_parallel_batch)
 				pieces = np.hstack(red_pieces_parallel_batch)
-				try:
-					board = np.vstack(red_board_parallel_batch)
-				except Exception as e:
-					import traceback
-					traceback.print_exc()
-					pdb.set_trace()
+				board = np.vstack(red_board_parallel_batch)
 				mask = np.hstack(red_mask_parallel_batch)
-				reward = game_reward[:, np.hstack(red_game_numbers_batch)]
+				reward = game_reward[:, np.squeeze(np.hstack(red_game_numbers_batch))]
 				cost, cost_win, cost_loss, params = red_model.train_model(Y, board, pieces, mask, reward)
 				minimums = params["mins"]
 				maximums = params["maxes"]
