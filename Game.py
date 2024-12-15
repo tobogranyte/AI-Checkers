@@ -1,5 +1,6 @@
 import numpy as np
 from Board import Board
+import random
 
 # Game class manages all game mechanics. The main program creates a new game,
 # assigns players to the game (which have already been given models), and issues the
@@ -22,6 +23,7 @@ class Game:
 		self.black_attempts = 0
 		self.black_moves = 0
 		self.moves_since_jump = 0
+		self.draw_max = int(random.random() * 300 + 100)
 		self.draw = False
 		self.win = False
 		self.jump_piece_number = None

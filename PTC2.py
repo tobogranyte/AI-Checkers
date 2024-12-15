@@ -218,8 +218,8 @@ class PTC2(nn.Module):
 		training_stats.append(forward_prop_time)
 		backward_prop_start = time.time()
 		log_prob = torch.log(X + epsilon)
-		reward_win = torch.where(reward == 1, 1, 0)
-		reward_loss = torch.where(reward == -1, -1, 0)
+		reward_win = torch.where(reward > 0, reward, 0)
+		reward_loss = torch.where(reward < 0, reward, 0)
 		log_prob_move = log_prob[Y == 1].unsqueeze(1)
 		cost_win = - reward_win * log_prob_move
 		cost_loss = - reward_loss * log_prob_move

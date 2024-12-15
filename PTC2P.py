@@ -9,7 +9,7 @@ import time
 import csv
 import pdb
 
-class PTC3(nn.Module):
+class PTC2P(nn.Module):
 
 	def __init__(self, name, identifier):
 		super().__init__()
@@ -30,10 +30,13 @@ class PTC3(nn.Module):
 		self.conv_5x5 = nn.Conv2d(16, 32, kernel_size=5, stride=1, padding=2)
 		self.conv_7x7 = nn.Conv2d(32, 64, kernel_size=7, stride=1, padding=3)
 		self.conv_9x9 = nn.Conv2d(64, 128, kernel_size=9, stride=1, padding=4)
-		self.batch_norm_3x3 = nn.BatchNorm2d([16])
-		self.batch_norm_5x5 = nn.BatchNorm2d([32])
-		self.batch_norm_7x7 = nn.BatchNorm2d([64])
-		self.batch_norm_9x9 = nn.BatchNorm2d([128])
+		self.layer_norm_3x3 = nn.LayerNorm([16, 8, 4])
+		self.layer_norm_5x5 = nn.LayerNorm([32, 8, 4])
+		self.layer_norm_7x7 = nn.LayerNorm([64, 8, 4])
+		self.layer_norm_9x9 = nn.LayerNorm([128, 8, 4])
+		self.dropout = nn.Dropout(dropout_prob)
+		self.projection = nn.Linear(self.layers_dims[0], self.layers_dims[0])
+
 		for n in range(len(self.layers_dims) - 2):
 			layers.append(nn.Linear(self.layers_dims[n], self.layers_dims[n+1]))
 			layers.append(nn.LayerNorm(self.layers_dims[n+1]))
@@ -49,7 +52,6 @@ class PTC3(nn.Module):
 				# Restore variables from disk.
 				self.load_checkpoint(self.name, self.identifier)
 				print("Session restored!")
-				self.new_learning_rate(1)
 				if input("Make checkpoint from saved?") == "Y":
 					name = input("Checkpoint name:")
 					self.save_obj(name)
@@ -85,10 +87,10 @@ class PTC3(nn.Module):
 
 	def forward(self, board, pieces, mask, y=None):
 		# Apply convolutions and ReLU
-		out_3x3 = F.relu(self.batch_norm_3x3(self.conv_3x3(board)))  # Shape: (batch_size, 16, 8, 4)
-		out_5x5 = F.relu(self.batch_norm_5x5(self.conv_5x5(out_3x3)))  # Shape: (batch_size, 32, 8, 4)
-		out_7x7 = F.relu(self.batch_norm_7x7(self.conv_7x7(out_5x5)))  # Shape: (batch_size, 64, 8, 4)
-		out_9x9 = F.relu(self.batch_norm_9x9(self.conv_9x9(out_7x7)))  # Shape: (batch_size, 128, 8, 4)
+		out_3x3 = F.relu(self.layer_norm_3x3(self.conv_3x3(board)))  # Shape: (batch_size, 16, 8, 4)
+		out_5x5 = F.relu(self.layer_norm_5x5(self.conv_5x5(out_3x3)))  # Shape: (batch_size, 32, 8, 4)
+		out_7x7 = F.relu(self.layer_norm_7x7(self.conv_7x7(out_5x5)))  # Shape: (batch_size, 64, 8, 4)
+		out_9x9 = F.relu(self.layer_norm_9x9(self.conv_9x9(out_7x7)))  # Shape: (batch_size, 128, 8, 4)
 
 		
 		# Flatten convolutional output for the fully connected layers
@@ -97,7 +99,10 @@ class PTC3(nn.Module):
 		# Concatenate with the direct input vector
 		combined_input = torch.cat((out_conv_flat, pieces), dim=1)  # Shape: (batch_size, 32*8*4 + input_size)
 
-		logits = self.feed_forward(combined_input) / self.temperature
+		projected_input = self.projection(combined_input)
+		projected_input = self.dropout(projected_input)
+
+		logits = self.feed_forward(projected_input) / self.temperature
 		masked_logits = logits.masked_fill(mask == 0, float('-inf'))  # Mask illegal moves
 		masked_probs = F.softmax(masked_logits, dim=1)  # Apply softmax only on legal moves
 		if torch.isnan(masked_probs).any():
@@ -174,10 +179,18 @@ class PTC3(nn.Module):
 		total_start = time.time()
 		train_init_start = time.time()
 
-		'''Initialize variables'''s
+		'''Initialize variables'''
 		epsilon = 1e-8
 		training_stats = []
 		params = {}
+
+		'''Create filtered arrays'''
+		reward_non_zero_mask = np.squeeze(reward, axis=0) != 0
+		reward = reward[:, reward_non_zero_mask]
+		Y = Y[:, reward_non_zero_mask]
+		pieces = pieces[:, reward_non_zero_mask]
+		mask = mask[:, reward_non_zero_mask]
+		board = board[reward_non_zero_mask, :, :, :]
 
 		'''Setup'''
 		self.add_hooks()
@@ -203,9 +216,9 @@ class PTC3(nn.Module):
 		'''Timing'''
 		forward_prop_start = time.time()
 
+
 		torch.cuda.reset_peak_memory_stats()
 		X = self(board, pieces, mask_t)
-		
 		forward_prop_end = time.time()
 		forward_prop_time = forward_prop_end - forward_prop_start
 		training_stats.append(forward_prop_time)
@@ -213,13 +226,15 @@ class PTC3(nn.Module):
 		log_prob = torch.log(X + epsilon)
 		reward_win = torch.where(reward == 1, 1, 0)
 		reward_loss = torch.where(reward == -1, -1, 0)
-		log_prob_move = log_prob[Y == 1]
+		log_prob_move = log_prob[Y == 1].unsqueeze(1)
 		cost_win = - reward_win * log_prob_move
 		cost_loss = - reward_loss * log_prob_move
 		cost_win = cost_win.sum()
 		cost_loss = cost_loss.sum()
 		cost = cost_win.sum() + cost_loss.sum()
-		self.optimizer.zero_grad(set_to_none=True)
+		with open(f"Torch_{self.identifier}/cost.csv", mode="a", newline="") as file:
+			writer = csv.writer(file)
+			writer.writerow([cost.item(), cost_win.item(), cost_loss.item(), reward_win.sum().item(), reward_loss.sum().item(), (reward == 0).sum().item()])  # Write the list as a new row		self.optimizer.zero_grad(set_to_none=True)
 		cost.backward()
 		max_mem = torch.cuda.max_memory_allocated()
 		mem_stats = [self.trainings, max_mem, reward.shape]

@@ -32,6 +32,8 @@ def tally_and_print_stats(game):
 	global draw_pct
 	global black_win_pct
 	global draws
+	global game_red_moves
+	global game_black_moves
 
 	win, draw, side, red_piece_count, black_piece_count, red_move_count, black_move_count, red_illegal_count, black_illegal_count = game.stats()
 	red_move_total += game.red_moves
@@ -48,6 +50,8 @@ def tally_and_print_stats(game):
 	else:
 		p_side = "Draw "
 		draws += 1
+	game_red_moves[:, game.number] = game.red_moves
+	game_black_moves[:, game.number] = game.black_moves
 	margin = abs(red_piece_count - black_piece_count)
 	red_win_pct = (red_wins * 100)/(red_wins + black_wins)
 	black_win_pct = (black_wins * 100)/(red_wins + black_wins)
@@ -193,6 +197,7 @@ black_illegal_total = 0
 black_move_total = 0
 bootstrap_version = 0
 bootstrap_average = 0
+discount_factor = 0.95
 params = {}
 resume = input("Resume [Y/n]?")
 
@@ -317,6 +322,8 @@ if input("Play game [Y/n]:") == "Y":
 		done = False
 		create_games_start = time.time()
 		game_reward = np.zeros((1, train_games), dtype=int)
+		game_red_moves = np.zeros((1, train_games), dtype=int)
+		game_black_moves = np.zeros((1, train_games), dtype=int)
 		for count in range(0,train_games): # create a batch-sized array of games and "start" each game
 			game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = count)
 			"""
@@ -359,17 +366,17 @@ if input("Play game [Y/n]:") == "Y":
 			black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized legal moves label
 			red_moves_parallel = np.zeros((96, len(red_game_set)))
 			black_moves_parallel = np.zeros((96, len(black_game_set)))
-			black_game_numbers = np.zeros((1, len(black_game_set)), dtype=int)
-			red_game_numbers = np.zeros((1, len(red_game_set)), dtype=int)
-			black_move_numbers = np.zeros((1, len(black_game_set)), dtype=int)
-			red_move_numbers = np.zeros((1, len(red_game_set)), dtype=int)
+			black_game_numbers = np.zeros((1, len(black_game_set)), dtype=int) # game number for this black move across all the games in the black game set
+			red_game_numbers = np.zeros((1, len(red_game_set)), dtype=int) # game number for this red move across all the games in the red game set
+			black_move_numbers = np.zeros((1, len(black_game_set)), dtype=int) # red move number (zero indexed) for this move across all games in the red game set.
+			red_move_numbers = np.zeros((1, len(red_game_set)), dtype=int) # red move number (zero indexed) for this move across all games in the red game set.
 			for n, game in enumerate(red_game_set):
 				"""
 				Step through each game in the red training batch. For each game, get the input vector (X) from
 				the model and add it to the appropriate location in the red_X_batch.
 				Also for each game, get the Y (legal moves) and add it to the red_Y_batch.
 				"""
-				red_move_numbers[:,n] = game.red_moves
+				red_move_numbers[:,n] = game.red_moves + 1 # add what move number this is to this sample in the training batch
 				board, pieces, mask = game.generate_X_mask()
 				red_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
 				red_board_parallel[n, :, :, :] = board
@@ -381,7 +388,7 @@ if input("Play game [Y/n]:") == "Y":
 				the model and add it to the appropriate location in the black_X_batch.
 				Also for each game, get the Y (legal moves) and add it to the black_Y_batch.
 				"""
-				black_move_numbers[:,n] = game.black_moves
+				black_move_numbers[:,n] = game.black_moves + 1
 				board, pieces, mask = game.generate_X_mask()
 				black_board_parallel[n, :, :, :] = board
 				black_pieces_parallel[:,n] = pieces
@@ -469,6 +476,9 @@ if input("Play game [Y/n]:") == "Y":
 				board = np.vstack(red_board_parallel_batch)
 				mask = np.hstack(red_mask_parallel_batch)
 				reward = game_reward[:, np.squeeze(np.hstack(red_game_numbers_batch))]
+				game_red_moves_batch = game_red_moves[:, np.squeeze(np.hstack(red_game_numbers_batch))]
+				discount_factor_batch = discount_factor ** (game_red_moves_batch - np.hstack(red_move_numbers_batch))
+				reward = reward * discount_factor_batch
 				cost, cost_win, cost_loss, params = red_model.train_model(Y, board, pieces, mask, reward)
 				minimums = params["mins"]
 				maximums = params["maxes"]
