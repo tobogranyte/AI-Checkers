@@ -19,6 +19,8 @@ class Player:
 	def __init__(self, model, color):
 		self.model = model
 		self.color = color
+		self.move_count = 0
+		self.illegal_move_count = 0
 		self.reset()
 		if self.color == "Red":
 			self.other_color = "Black"

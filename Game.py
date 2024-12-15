@@ -1,5 +1,6 @@
 import numpy as np
 from Board import Board
+import random
 
 # Game class manages all game mechanics. The main program creates a new game,
 # assigns players to the game (which have already been given models), and issues the
@@ -22,6 +23,7 @@ class Game:
 		self.black_attempts = 0
 		self.black_moves = 0
 		self.moves_since_jump = 0
+		self.draw_max = int(random.random() * 300 + 100)
 		self.draw = False
 		self.win = False
 		self.jump_piece_number = None
@@ -104,6 +106,10 @@ class Game:
 			self.board.move_piece(self.player.color, piece_number, move) # move the piece on the board
 			self.player.increment_move_count()
 			self.moves += 1
+			if self.player_color() == "Red":
+				self.red_moves += 1
+			else:
+				self.black_moves += 1
 			# print(self.board.visual_state())
 			# print(self.board.pieces_out())
 			# input('Resume...')
@@ -139,7 +145,7 @@ class Game:
 				if np.max(board_legal_moves) == 0:
 					self.win = True
 					self.side = self.player.other_color
-				elif self.moves_since_jump >= 200:
+				elif self.moves_since_jump >= 400:
 					self.draw = True
 					self.side = self.player.other_color
 		else:  # no legal moves

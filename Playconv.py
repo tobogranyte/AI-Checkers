@@ -283,16 +283,17 @@ exec(import_string, globals())
 black_model = sm("black_model", identifier)
 black_player = Player(model = black_model, color = "Black") # create the black player assigning model and color
 '''
-identifier = None
+identifier = input('Identifier')
 bootstrap_version = 7
 jump_rule = True
-s_model = "PTC"
+s_model = "PTC2"
 import_string = 'from ' + s_model + ' import ' + s_model + ' as sm' # create self_play model import string
 exec(import_string, globals())
 red_model = None
 black_model = sm("black_model", identifier)
 if identifier != None:
-	black_model.load_checkpoint(f"black_model_{bootstrap_version}", identifier)
+	# black_model.load_checkpoint(f"black_model_{bootstrap_version}", identifier)
+	black_model.load_checkpoint(f"red_model", identifier)
 red_player = Player(model = red_model, color = "Red") # create the red player assigning model and color
 black_player = Player(model = black_model, color = "Black") # create the black player assigning model and color
 game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = 0, side = "black")
