@@ -216,7 +216,7 @@ if input("Self play [Y/n]?") == "Y":
 	train = input("Train models?")
 	train_games = int(input("Number of games before training:"))
 	bootstrap_threshold = int(input("Bootstrap threshold:"))
-	import_string = 'from ' + s_model + ' import ' + s_model + ' as sm' # create self_play model import string
+	import_string = 'from Models/' + s_model + ' import ' + s_model + ' as sm' # create self_play model import string
 	exec(import_string, globals())
 	red_model = sm("red_model", identifier)
 	red_model_lr = red_model.learning_rate

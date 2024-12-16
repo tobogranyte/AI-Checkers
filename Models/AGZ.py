@@ -24,8 +24,8 @@ class PTC2(nn.Module):
 		self.temperature = 1
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		print(self.device)
-		self.layers_dims = [4505, 2048, 1024, 512, 256, 96] #  6-layer model
-		layers = []
+		
+		'''Convolutional layers'''
 		self.conv_3x3 = nn.Conv2d(4, 16, kernel_size=3, stride=1, padding=1)
 		self.conv_5x5 = nn.Conv2d(16, 32, kernel_size=5, stride=1, padding=2)
 		self.conv_7x7 = nn.Conv2d(32, 64, kernel_size=7, stride=1, padding=3)
@@ -34,13 +34,28 @@ class PTC2(nn.Module):
 		self.layer_norm_5x5 = nn.LayerNorm([32, 8, 4])
 		self.layer_norm_7x7 = nn.LayerNorm([64, 8, 4])
 		self.layer_norm_9x9 = nn.LayerNorm([128, 8, 4])
-		for n in range(len(self.layers_dims) - 2):
-			layers.append(nn.Linear(self.layers_dims[n], self.layers_dims[n+1]))
-			layers.append(nn.LayerNorm(self.layers_dims[n+1]))
+
+		'''Policy network'''
+		self.policy_layers_dims = [4505, 2048, 1024, 512, 256, 96] #  6-layer model
+		for n in range(len(self.policy_layers_dims) - 2):
+			layers.append(nn.Linear(self.policy_layers_dims[n], self.policy_layers_dims[n+1]))
+			layers.append(nn.LayerNorm(self.policy_layers_dims[n+1]))
 			layers.append(nn.ReLU())
 			layers.append(nn.Dropout(dropout_prob))
-		layers.append(nn.Linear(self.layers_dims[n+1], self.layers_dims[n+2]))
-		self.feed_forward = nn.Sequential(*layers)
+		layers.append(nn.Linear(self.policy_layers_dims[n+1], self.policy_layers_dims[n+2]))
+		self.policy_output = nn.Sequential(*layers)
+
+		'''Value network'''
+		self.value_layers_dims = [4505, 2048, 1024, 512, 256, 96, 1] #  7-layer model
+		for n in range(len(self.value_layers_dims) - 2):
+			layers.append(nn.Linear(self.value_layers_dims[n], self.value_layers_dims[n+1]))
+			layers.append(nn.LayerNorm(self.value_layers_dims[n+1]))
+			layers.append(nn.ReLU())
+			layers.append(nn.Dropout(dropout_prob))
+		layers.append(nn.Linear(self.value_layers_dims[n+1], self.value_layers_dims[n+2]))
+		self.value_output = nn.Sequential(*layers)
+
+		
 		self.optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
 		self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=1)
 		available = self.check_for_params()
@@ -96,13 +111,18 @@ class PTC2(nn.Module):
 		# Concatenate with the direct input vector
 		combined_input = torch.cat((out_conv_flat, pieces), dim=1)  # Shape: (batch_size, 32*8*4 + input_size)
 
-		logits = self.feed_forward(combined_input) / self.temperature
-		masked_logits = logits.masked_fill(mask == 0, float('-inf'))  # Mask illegal moves
-		masked_probs = F.softmax(masked_logits, dim=1)  # Apply softmax only on legal moves
+		'''Feed into policy network'''
+		policy_logits = self.policy_output(combined_input) / self.temperature
+		masked_policy_logits = policy_logits.masked_fill(mask == 0, float('-inf'))  # Mask illegal moves
+		policy_output = F.softmax(masked_policy_logits, dim=1)  # Apply softmax only on legal moves
 		if torch.isnan(masked_probs).any():
 			pdb.set_trace()
 
-		return masked_probs
+		'''Feed into value network'''
+		value_logits = self.value_output(combined_input)
+		value_output = torch.tanh(value_logits)
+
+		return policy_output, value_output
 
 	def update_learning_rate(self, m):
 		self.learning_rate *= m
