@@ -27,32 +27,28 @@ class PTC2(nn.Module):
 		self.layers_dims = [4505, 2048, 1024, 512, 256, 96] #  6-layer model
 		layers = []
 		self.conv_3x3x16 = nn.Conv2d(4, 16, kernel_size=3, stride=1, padding=1)
-		self.projection_4_16 = nn.Conv2d(4, 16, kernel_size=1, stride=1, padding=1)
-		self.conv_3x3x32 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=2)
-		self.projection_16_32 = nn.Conv2d(16, 32, kernel_size=1, stride=1, padding=1)
-		self.conv_3x3x64 = nn.Conv2d(32, 64, kernel_size=7, stride=1, padding=3)
-		self.projection_32_64 = nn.Conv2d(32, 64, kernel_size=1, stride=1, padding=1)
-		self.conv_3x3x128 = nn.Conv2d(64, 128, kernel_size=9, stride=1, padding=4)
-		self.projection_64_128 = nn.Conv2d(64, 128, kernel_size=1, stride=1, padding=1)
-		self.batch_norm_3x3x16 = nn.BatchNorm2d([16])
-		self.batch_norm_3x3x16.weight.data.fill_(0)
-		self.batch_norm_3x3x16.bias.data.fill_(0)
-		self.batch_norm_3x3x32 = nn.BatchNorm2d([32])
-		self.batch_norm_3x3x32.weight.data.fill_(0)
-		self.batch_norm_3x3x32.bias.data.fill_(0)
-		self.batch_norm_3x3x64 = nn.BatchNorm2d([64])
-		self.batch_norm_3x3x64.weight.data.fill_(0)
-		self.batch_norm_3x3x64.bias.data.fill_(0)
-		self.batch_norm_3x3x128 = nn.BatchNorm2d([128])
-		self.batch_norm_3x3x128.weight.data.fill_(0)
-		self.batch_norm_3x3x128.bias.data.fill_(0)
-		self.projection_batch_norm_3x3x16 = nn.BatchNorm2d([16])
-		self.projection_batch_norm_3x3x32 = nn.BatchNorm2d([32])
-		self.projection_batch_norm_3x3x64 = nn.BatchNorm2d([64])
-		self.projection_batch_norm_3x3x128 = nn.BatchNorm2d([128])
+		self.projection_4_16 = nn.Conv2d(4, 16, kernel_size=1, stride=1, padding=0)
+		self.conv_5x5x32 = nn.Conv2d(16, 32, kernel_size=5, stride=1, padding=2)
+		self.projection_16_32 = nn.Conv2d(16, 32, kernel_size=1, stride=1, padding=0)
+		self.conv_7x7x64 = nn.Conv2d(32, 64, kernel_size=7, stride=1, padding=3)
+		self.projection_32_64 = nn.Conv2d(32, 64, kernel_size=1, stride=1, padding=0)
+		self.conv_9x9x128 = nn.Conv2d(64, 128, kernel_size=9, stride=1, padding=4)
+		self.projection_64_128 = nn.Conv2d(64, 128, kernel_size=1, stride=1, padding=0)
+		self.layer_norm_3x3x16 = nn.LayerNorm([16, 8, 4])
+		self.layer_norm_5x5x32 = nn.LayerNorm([32, 8, 4])
+		self.layer_norm_7x7x64 = nn.LayerNorm([64, 8, 4])
+		self.layer_norm_9x9x128 = nn.LayerNorm([128, 8, 4])
+		self.projection_layer_norm_3x3x16 = nn.LayerNorm([16, 8, 4])
+		self.projection_layer_norm_5x5x32 = nn.LayerNorm([32, 8, 4])
+		self.projection_layer_norm_7x7x64 = nn.LayerNorm([64, 8, 4])
+		self.projection_layer_norm_9x9x128 = nn.LayerNorm([128, 8, 4])
+		self.residual_weight_0 = nn.Parameter(torch.tensor(0.1))
+		self.residual_weight_1 = nn.Parameter(torch.tensor(0.1))
+		self.residual_weight_2 = nn.Parameter(torch.tensor(0.1))
+		self.residual_weight_3 = nn.Parameter(torch.tensor(0.1))
 		for n in range(len(self.layers_dims) - 2):
 			layers.append(nn.Linear(self.layers_dims[n], self.layers_dims[n+1]))
-			layers.append(nn.BatchNorm2d(self.layers_dims[n+1]))
+			layers.append(nn.LayerNorm(self.layers_dims[n+1]))
 			layers.append(nn.ReLU())
 			layers.append(nn.Dropout(dropout_prob))
 		layers.append(nn.Linear(self.layers_dims[n+1], self.layers_dims[n+2]))
@@ -100,22 +96,21 @@ class PTC2(nn.Module):
 
 	def forward(self, board, pieces, mask, y=None):
 		# Apply convolutions and ReLU
-		projection_16 = self.projection_batch_norm_3x3x16(self.projection_4_16(board))
-		out_3x3x16 = F.relu(self.batch_norm_3x3x16(self.conv_3x3x16(board))) + projection_16 # Shape: (batch_size, 16, 8, 4)
-		projection_32 = self.projection_batch_norm_3x3x32(self.projection_16_32(projection_16))
-		out_3x3x32 = F.relu(self.batch_norm_3x3x32(self.conv_3x3x32(out_3x3x16))) + projection_32 # Shape: (batch_size, 32, 8, 4)
-		projection_64 = self.projection_batch_norm_3x3x64(self.projection_32_64(projection_32))
-		out_3x3x64 = F.relu(self.batch_norm_3x3x64(self.conv_3x3x64(out_3x3x32))) + projection_64 # Shape: (batch_size, 64, 8, 4)
-		projection_128 = self.projection_batch_norm_3x3x128(self.projection_64_128(projection_64))
-		out_3x3x128 = F.relu(self.batch_norm_3x3x128(self.conv_3x3x128(out_3x3x64))) + projection_128 # Shape: (batch_size, 128, 8, 4)
+		projection_16 = self.projection_layer_norm_3x3x16(self.projection_4_16(board))
+		out_3x3x16 = F.relu(self.layer_norm_3x3x16(self.conv_3x3x16(board))) + (self.residual_weight_0 * projection_16) # Shape: (batch_size, 16, 8, 4)
+		projection_32 = self.projection_layer_norm_5x5x32(self.projection_16_32(projection_16))
+		out_5x5x32 = F.relu(self.layer_norm_5x5x32(self.conv_5x5x32(out_3x3x16))) + (self.residual_weight_1 * projection_32) # Shape: (batch_size, 32, 8, 4)
+		projection_64 = self.projection_layer_norm_7x7x64(self.projection_32_64(projection_32))
+		out_7x7x64 = F.relu(self.layer_norm_7x7x64(self.conv_7x7x64(out_5x5x32))) + (self.residual_weight_2 * projection_64) # Shape: (batch_size, 64, 8, 4)
+		projection_128 = self.projection_layer_norm_9x9x128(self.projection_64_128(projection_64))
+		out_9x9x128 = F.relu(self.layer_norm_9x9x128(self.conv_9x9x128(out_7x7x64))) + (self.residual_weight_3 * projection_128) # Shape: (batch_size, 128, 8, 4)
 
 		
 		# Flatten convolutional output for the fully connected layers
-		out_conv_flat = out_3x3x128.view(out_3x3x128.size(0), -1)  # Shape: (batch_size, 32 * 8 * 4)
+		out_conv_flat = out_9x9x128.view(out_9x9x128.size(0), -1)  # Shape: (batch_size, 32 * 8 * 4)
 		
 		# Concatenate with the direct input vector
 		combined_input = torch.cat((out_conv_flat, pieces), dim=1)  # Shape: (batch_size, 32*8*4 + input_size)
-
 		logits = self.feed_forward(combined_input) / self.temperature
 		masked_logits = logits.masked_fill(mask == 0, float('-inf'))  # Mask illegal moves
 		masked_probs = F.softmax(masked_logits, dim=1)  # Apply softmax only on legal moves

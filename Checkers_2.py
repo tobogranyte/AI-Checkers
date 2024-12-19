@@ -188,6 +188,7 @@ black_wins = 0
 draws = 0
 batch_count = 0
 games_total = 0
+batch_total_games = 0
 red_win_pct = 0
 black_win_pct = 0
 draw_pct = 0
@@ -198,6 +199,7 @@ black_move_total = 0
 bootstrap_version = 0
 bootstrap_average = 0
 discount_factor = 0.95
+loss_training_percentage = 0.4
 params = {}
 resume = input("Resume [Y/n]?")
 
@@ -316,29 +318,9 @@ if input("Play game [Y/n]:") == "Y":
 	while True:
 		stats = []
 		main_loop_start = time.time()
-		red_game_set = []
-		black_game_set = []
-		games = []
 		done = False
-		create_games_start = time.time()
-		game_reward = np.zeros((1, train_games), dtype=int)
-		game_red_moves = np.zeros((1, train_games), dtype=int)
-		game_black_moves = np.zeros((1, train_games), dtype=int)
-		for count in range(0,train_games): # create a batch-sized array of games and "start" each game
-			game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = count)
-			"""
-			Create a game. This creates a game, setting all game parameters and also choosing the starting
-			player (red or black) at random.
-			"""
-			games.append(game)
-			# append the game to the batch of games
-		for n, game in enumerate(games):
-			if game.player_color() == "Red": # game with a red move
-				red_game_set.append(game) # append to list of games with red moves
-			else: #game with a black move
-				black_game_set.append(game) #append to list of games with black moves
-
-		batch_count += 1 # this is the first batch
+		full_batch = False
+		purge = False
 		red_pieces_parallel_batch = []
 		black_pieces_parallel_batch = []
 		red_board_parallel_batch = []
@@ -352,119 +334,180 @@ if input("Play game [Y/n]:") == "Y":
 		black_move_numbers_batch = []
 		red_move_numbers_batch = []
 		create_games_end = time.time()
-		create_games_time = create_games_end - create_games_start
-		stats.append(create_games_time)
-		play_games_start = time.time()
-		while not done:
-			red_pieces_parallel = np.zeros((409, len(red_game_set))) # X values for all games where it's a red move (column vector * number of red move games)
-			black_pieces_parallel = np.zeros((409, len(black_game_set))) # X values for all games where it's a black move (column vector * number of black move games)
-			red_board_parallel = np.zeros((len(red_game_set), 4, 8, 4)) 
-			black_board_parallel = np.zeros((len(black_game_set), 4, 8, 4)) 
-			red_Y_parallel = np.zeros((96, len(red_game_set))) # unit normalized legal moves label
-			black_Y_parallel = np.zeros((96, len(black_game_set))) # unit normalized legal moves label
-			red_mask_parallel = np.zeros((96, len(red_game_set))) # non-normalized legal moves label
-			black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized legal moves label
-			red_moves_parallel = np.zeros((96, len(red_game_set)))
-			black_moves_parallel = np.zeros((96, len(black_game_set)))
-			black_game_numbers = np.zeros((1, len(black_game_set)), dtype=int) # game number for this black move across all the games in the black game set
-			red_game_numbers = np.zeros((1, len(red_game_set)), dtype=int) # game number for this red move across all the games in the red game set
-			black_move_numbers = np.zeros((1, len(black_game_set)), dtype=int) # red move number (zero indexed) for this move across all games in the red game set.
-			red_move_numbers = np.zeros((1, len(red_game_set)), dtype=int) # red move number (zero indexed) for this move across all games in the red game set.
-			for n, game in enumerate(red_game_set):
-				"""
-				Step through each game in the red training batch. For each game, get the input vector (X) from
-				the model and add it to the appropriate location in the red_X_batch.
-				Also for each game, get the Y (legal moves) and add it to the red_Y_batch.
-				"""
-				red_move_numbers[:,n] = game.red_moves + 1 # add what move number this is to this sample in the training batch
-				board, pieces, mask = game.generate_X_mask()
-				red_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
-				red_board_parallel[n, :, :, :] = board
-				red_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
-				red_game_numbers[:,n] = game.number # the game number in the batch of games being played
-			for n, game in enumerate(black_game_set):
-				"""
-				Step through each game in the black training batch. For each game, get the input vector (X) from
-				the model and add it to the appropriate location in the black_X_batch.
-				Also for each game, get the Y (legal moves) and add it to the black_Y_batch.
-				"""
-				black_move_numbers[:,n] = game.black_moves + 1
-				board, pieces, mask = game.generate_X_mask()
-				black_board_parallel[n, :, :, :] = board
-				black_pieces_parallel[:,n] = pieces
-				black_mask_parallel[:,n] = mask
-				black_game_numbers[:,n] = game.number
-			if len(red_game_set) > 0:
-				red_AL = red_model.forward_pass(red_board_parallel, red_pieces_parallel, red_mask_parallel) # get matrix of vector probabilities for the next move in all red games
-
-			if len(black_game_set) > 0:
-				black_AL = black_model.forward_pass(black_board_parallel, black_pieces_parallel, black_mask_parallel) # get matrix of vector probabilities for the next move in all black games
-
-			for n, game in enumerate(red_game_set):
-				"""
-				Step through each game in the red game batch. Get a one hot move by rolling the dice according to probabilities.
-				Keep rolling the dice until a legal move is generated.
-				Make the move.
-				"""
-				if np.count_nonzero(red_mask_parallel[:,n]) != 0: # if there are any legal moves at all
-					one_hot_move, piece_number, move = red_model.generate_move(red_AL[:,n]) # make a dice-roll attempt
-					while np.count_nonzero(one_hot_move * red_mask_parallel[:,n]) == 0: # check if the current proposed move is illegal
-						print('Illegal move')
-						one_hot_move, piece_number, move = red_model.generate_move(red_AL[:,n]) # roll the dice again
-					red_moves_parallel[:,n] = one_hot_move # log the move made
-					win, draw = game.make_move(move, piece_number) # have the game make the move
-					if win: # if it was a win or draw (game over)
-						game_reward[:,game.number] = 1 # positive reward for this game because red won
-						tally_and_print_stats(game)
-					elif draw:
-						tally_and_print_stats(game)
-			for n, game in enumerate(black_game_set):
-				"""
-				Step through each game in the black game batch. Get a one hot move by rolling the dice according to probabilities.
-				Keep rolling the dice until a legal move is generated.
-				Make the move.
-				"""
-				if np.count_nonzero(black_mask_parallel[:,n]) != 0: # if there are any legal moves at all
-					one_hot_move, piece_number, move = black_model.generate_move(black_AL[:,n]) # make a dice-roll attempt
-					while np.count_nonzero(one_hot_move * black_mask_parallel[:,n]) == 0: # check if the current proposed move is illegal
-						print('Illegal move')
-						one_hot_move, piece_number, move = black_model.generate_move(black_AL[:,n]) # roll the dice again
-					black_moves_parallel[:,n] = one_hot_move # log the move made
-					win, draw = game.make_move(move, piece_number) # have the game make the move
-					if win: # if it was a win or draw (game over)
-						game_reward[:,game.number] = -1 # negatie reward for this game because red lost
-						tally_and_print_stats(game)
-					elif draw:
-						tally_and_print_stats(game)
-			red_pieces_parallel_batch.append(red_pieces_parallel)
-			black_pieces_parallel_batch.append(black_pieces_parallel)
-			red_board_parallel_batch.append(red_board_parallel)
-			black_board_parallel_batch.append(black_board_parallel)
-			red_mask_parallel_batch.append(red_mask_parallel)
-			black_mask_parallel_batch.append(black_mask_parallel)
-			red_moves_parallel_batch.append(red_moves_parallel)
-			black_moves_parallel_batch.append(black_moves_parallel)
-			black_game_numbers_batch.append(black_game_numbers)
-			red_game_numbers_batch.append(red_game_numbers)
-			black_move_numbers_batch.append(black_move_numbers)
-			red_move_numbers_batch.append(red_move_numbers)
+		games_set = train_games
+		batch_total_games = 0
+		game_reward = np.zeros((1,0), dtype=int)
+		game_red_moves = np.zeros((1,0), dtype=int)
+		game_black_moves = np.zeros((1,0), dtype=int)
+		batch_count = 0
+		while not full_batch:
+			create_games_start = time.time()
+			games = []
 			red_game_set = []
 			black_game_set = []
-			number = None
-			done = True
+			game_reward = np.hstack([game_reward, np.zeros((1, games_set), dtype=int)])
+			game_red_moves = np.hstack([game_red_moves, np.zeros((1, games_set), dtype=int)]) # Total number of red moves for each game in a game set
+			game_black_moves = np.hstack([game_black_moves, np.zeros((1, games_set), dtype=int)]) # total number of black moves for each game in a game set
+			print("Creating games")
+			for count in range(0, games_set): # create a batch-sized array of games and "start" each game
+				game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = (batch_total_games) + count)
+				"""
+				Create a game. This creates a game, setting all game parameters and also choosing the starting
+				player (red or black) at random.
+				"""
+				games.append(game)
+				# append the game to the batch of games
 			for n, game in enumerate(games):
-				if (not game.win) and (not game.draw):
-					number = game.number
-					# print("Not done", n, game.player_color(), game.player_count(), game.other_player_color(), game.other_player_count())
-					# print(game.board.visual_state())
-					done = False
-					if game.player_color() == "Red": # game with a red move
-						red_game_set.append(game) # append to list of games with red moves
-					else: #game with a black move
-						black_game_set.append(game) #append to list of games with black moves
-			play_games_end = time.time()
-		play_games_time = play_games_end - play_games_start
-		stats.append(play_games_time)
+				if game.player_color() == "Red": # game with a red move
+					red_game_set.append(game) # append to list of games with red moves
+				else: #game with a black move
+					black_game_set.append(game) #append to list of games with black moves
+			create_games_time = create_games_end - create_games_start
+			stats.append(create_games_time)
+
+			play_games_start = time.time()
+			print("Playing games")
+			while not done:
+				red_pieces_parallel = np.zeros((409, len(red_game_set))) # X values for all games where it's a red move (column vector * number of red move games)
+				black_pieces_parallel = np.zeros((409, len(black_game_set))) # X values for all games where it's a black move (column vector * number of black move games)
+				red_board_parallel = np.zeros((len(red_game_set), 4, 8, 4)) 
+				black_board_parallel = np.zeros((len(black_game_set), 4, 8, 4)) 
+				red_Y_parallel = np.zeros((96, len(red_game_set))) # unit normalized legal moves label
+				black_Y_parallel = np.zeros((96, len(black_game_set))) # unit normalized legal moves label
+				red_mask_parallel = np.zeros((96, len(red_game_set))) # non-normalized legal moves label
+				black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized legal moves label
+				red_moves_parallel = np.zeros((96, len(red_game_set)))
+				black_moves_parallel = np.zeros((96, len(black_game_set)))
+				black_game_numbers = np.zeros((1, len(black_game_set)), dtype=int) # game number for this black move across all the games in the black game set
+				red_game_numbers = np.zeros((1, len(red_game_set)), dtype=int) # game number for this red move across all the games in the red game set
+				black_move_numbers = np.zeros((1, len(black_game_set)), dtype=int) # red move number (zero indexed) for this move across all games in the red game set.
+				red_move_numbers = np.zeros((1, len(red_game_set)), dtype=int) # red move number (zero indexed) for this move across all games in the red game set.
+
+				'''Get input and mask vectors for all games for forward pass'''
+				for n, game in enumerate(red_game_set):
+					"""
+					Step through each game in the red training batch. For each game, get the input vector (X) from
+					the model and add it to the appropriate location in the red_X_batch.
+					Also for each game, get the Y (legal moves) and add it to the red_Y_batch.
+					"""
+					red_move_numbers[:,n] = game.red_moves + 1 # add what move number this is to this sample in the training batch
+					board, pieces, mask = game.generate_X_mask()
+					red_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
+					red_board_parallel[n, :, :, :] = board
+					red_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
+					red_game_numbers[:,n] = game.number # the game number of this sample in the batch of games being played
+				for n, game in enumerate(black_game_set):
+					"""
+					Step through each game in the black training batch. For each game, get the input vector (X) from
+					the model and add it to the appropriate location in the black_X_batch.
+					Also for each game, get the Y (legal moves) and add it to the black_Y_batch.
+					"""
+					black_move_numbers[:,n] = game.black_moves + 1
+					board, pieces, mask = game.generate_X_mask()
+					black_board_parallel[n, :, :, :] = board
+					black_pieces_parallel[:,n] = pieces
+					black_mask_parallel[:,n] = mask
+					black_game_numbers[:,n] = game.number
+
+				'''Do forward pass (get probabilities) for next move across all red games'''
+				if len(red_game_set) > 0:
+					red_AL = red_model.forward_pass(red_board_parallel, red_pieces_parallel, red_mask_parallel) # get matrix of vector probabilities for the next move in all red games
+
+				'''Do forward pass (get probabilities) for next move across all black games'''
+				if len(black_game_set) > 0:
+					black_AL = black_model.forward_pass(black_board_parallel, black_pieces_parallel, black_mask_parallel) # get matrix of vector probabilities for the next move in all black games
+
+				'''Make move for all games based on probabilities'''
+				for n, game in enumerate(red_game_set):
+					"""
+					Step through each game in the red game batch. Get a one hot move by rolling the dice according to probabilities.
+					Keep rolling the dice until a legal move is generated.
+					Make the move.
+					"""
+					if np.count_nonzero(red_mask_parallel[:,n]) != 0: # if there are any legal moves at all
+						one_hot_move, piece_number, move = red_model.generate_move(red_AL[:,n]) # make a dice-roll attempt
+						while np.count_nonzero(one_hot_move * red_mask_parallel[:,n]) == 0: # check if the current proposed move is illegal
+							print('Illegal move')
+							one_hot_move, piece_number, move = red_model.generate_move(red_AL[:,n]) # roll the dice again
+						red_moves_parallel[:,n] = one_hot_move # log the move made
+						win, draw = game.make_move(move, piece_number) # have the game make the move
+						if win: # if it was a win or draw (game over)
+							game_reward[:, game.number] = 1 # positive reward for this game because red won
+							tally_and_print_stats(game)
+						elif draw:
+							tally_and_print_stats(game)
+				for n, game in enumerate(black_game_set):
+					"""
+					Step through each game in the black game batch. Get a one hot move by rolling the dice according to probabilities.
+					Keep rolling the dice until a legal move is generated.
+					Make the move.
+					"""
+					if np.count_nonzero(black_mask_parallel[:,n]) != 0: # if there are any legal moves at all
+						one_hot_move, piece_number, move = black_model.generate_move(black_AL[:,n]) # make a dice-roll attempt
+						while np.count_nonzero(one_hot_move * black_mask_parallel[:,n]) == 0: # check if the current proposed move is illegal
+							print('Illegal move')
+							one_hot_move, piece_number, move = black_model.generate_move(black_AL[:,n]) # roll the dice again
+						black_moves_parallel[:,n] = one_hot_move # log the move made
+						win, draw = game.make_move(move, piece_number) # have the game make the move
+						if win: # if it was a win or draw (game over)
+							game_reward[:,game.number] = -1 # negatie reward for this game because red lost
+							tally_and_print_stats(game)
+						elif draw:
+							tally_and_print_stats(game)
+				red_pieces_parallel_batch.append(red_pieces_parallel)
+				black_pieces_parallel_batch.append(black_pieces_parallel)
+				red_board_parallel_batch.append(red_board_parallel)
+				black_board_parallel_batch.append(black_board_parallel)
+				red_mask_parallel_batch.append(red_mask_parallel)
+				black_mask_parallel_batch.append(black_mask_parallel)
+				red_moves_parallel_batch.append(red_moves_parallel)
+				black_moves_parallel_batch.append(black_moves_parallel)
+				black_game_numbers_batch.append(black_game_numbers)
+				red_game_numbers_batch.append(red_game_numbers) # A master list of the game numbers of every red move in the batch
+				black_move_numbers_batch.append(black_move_numbers)
+				red_move_numbers_batch.append(red_move_numbers)
+				red_game_set = []
+				black_game_set = []
+				number = None
+				done = True
+				for n, game in enumerate(games):
+					if (not game.win) and (not game.draw):
+						number = game.number
+						# print("Not done", n, game.player_color(), game.player_count(), game.other_player_color(), game.other_player_count())
+						# print(game.board.visual_state())
+						done = False
+						if game.player_color() == "Red": # game with a red move
+							red_game_set.append(game) # append to list of games with red moves
+						else: #game with a black move
+							black_game_set.append(game) #append to list of games with black moves
+				play_games_end = time.time()
+			loss_total = (np.squeeze(game_reward) == -1).sum()
+			win_total = (np.squeeze(game_reward) == 1).sum()
+			batch_total_games += games_set
+			if batch_total_games == train_games:
+				draw_total = (np.squeeze(game_reward) == 0).sum()
+			if loss_total < int((train_games - draw_total) * loss_training_percentage):
+				print("Not enough losses")
+				batch_count += 1
+				done = False
+				games_set = int((((train_games - draw_total) * loss_training_percentage * 1.1) - loss_total) / (loss_total / batch_total_games)) # Set a new games set that will be sufficient to generate enough losses to make the balance
+				if games_set > train_games:
+					games_set = train_games # But don't go over the total batch size in any one set.
+			else:
+				full_batch = True
+				target_win_total = int((1 - loss_training_percentage) * loss_total / loss_training_percentage)
+				win_purge = win_total - target_win_total
+				if win_purge > 0 and batch_total_games != train_games:
+					print("Purging wins")
+					purge = True
+					winning_game_list_mask = np.squeeze(game_reward, axis=0) == 1
+					game_number_array = np.arange(batch_total_games)
+					winning_game_numbers = np.random.permutation(game_number_array[winning_game_list_mask])
+					winning_game_purge = winning_game_numbers[:win_purge]
+					winning_games_mask = ~np.isin(np.squeeze(np.hstack(red_game_numbers_batch)), winning_game_purge)
+				
+			play_games_time = play_games_end - play_games_start
+			stats.append(play_games_time)
 
 		train_model_start = time.time()
 		if (train == "Y" or train_red == "Y" or train_black == "Y"):
@@ -475,10 +518,16 @@ if input("Play game [Y/n]:") == "Y":
 				pieces = np.hstack(red_pieces_parallel_batch)
 				board = np.vstack(red_board_parallel_batch)
 				mask = np.hstack(red_mask_parallel_batch)
-				reward = game_reward[:, np.squeeze(np.hstack(red_game_numbers_batch))]
-				game_red_moves_batch = game_red_moves[:, np.squeeze(np.hstack(red_game_numbers_batch))]
+				reward = game_reward[:, np.squeeze(np.hstack(red_game_numbers_batch))] #assign a reward to each game
+				game_red_moves_batch = game_red_moves[:, np.squeeze(np.hstack(red_game_numbers_batch))] # total number of red moves for the game that this move was part of
 				discount_factor_batch = discount_factor ** (game_red_moves_batch - np.hstack(red_move_numbers_batch))
 				reward = reward * discount_factor_batch
+				if purge:
+					Y = Y[:, winning_games_mask]
+					pieces = pieces[:, winning_games_mask]
+					board = board[winning_games_mask, :, :, :]
+					mask = mask[:, winning_games_mask]
+					reward = reward[:, winning_games_mask]
 				cost, cost_win, cost_loss, params = red_model.train_model(Y, board, pieces, mask, reward)
 				minimums = params["mins"]
 				maximums = params["maxes"]
@@ -498,7 +547,7 @@ if input("Play game [Y/n]:") == "Y":
 				bootstrap_average = red_win_pct
 			else:
 				bootstrap_average = 0.9 * bootstrap_average + 0.1 * red_win_pct
-			games_total += train_games
+			games_total += batch_total_games
 			print(f"Games total:{games_total}")
 			new_data = {
 				"games": games_total,  # Example game count
