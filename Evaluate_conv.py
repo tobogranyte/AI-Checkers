@@ -132,13 +132,13 @@ for black_version in range(0, bootstrap_version):
 					for n, game in enumerate(red_game_set):
 						board, pieces, mask = game.generate_X_mask()
 						red_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
-						red_board_parallel[n, :, :, :] = board
+						red_board_parallel[n] = board
 						red_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
 						red_game_numbers[:,n] = game.number # the game number in the batch of games being played
 					for n, game in enumerate(black_game_set):
 						board, pieces, mask = game.generate_X_mask()
 						black_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
-						black_board_parallel[n, :, :, :] = board
+						black_board_parallel[n] = board
 						black_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
 						black_game_numbers[:,n] = game.number # the game number in the batch of games being played
 					if len(red_game_set) > 0:

@@ -30,7 +30,7 @@ class Board:
 	def get_piece_vector(self, color):
 		if color == 'Red':
 			numbers = self.red_numbers # red piece numbers for all board locations (red vantage point)
-			piece = self.red_pieces				
+			piece = self.red_pieces
 		else:
 			numbers = self.black_numbers # black
 			piece = self.black_pieces
@@ -45,7 +45,7 @@ class Board:
 			if p.in_play == True:
 				in_play[p.number] = 1
 		v[384:396] = in_play
-		return v
+		return v # 1-dimensional vector
 
 	def black_home_view(self): 
 		# return the black state view ("from the other side of the board"), and with the red/black

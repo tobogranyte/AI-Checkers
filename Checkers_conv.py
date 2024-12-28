@@ -379,7 +379,7 @@ if input("Play game [Y/n]:") == "Y":
 				red_move_numbers[:,n] = game.red_moves + 1 # add what move number this is to this sample in the training batch
 				board, pieces, mask = game.generate_X_mask()
 				red_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
-				red_board_parallel[n, :, :, :] = board
+				red_board_parallel[n] = board
 				red_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
 				red_game_numbers[:,n] = game.number # the game number in the batch of games being played
 			for n, game in enumerate(black_game_set):
@@ -390,7 +390,7 @@ if input("Play game [Y/n]:") == "Y":
 				"""
 				black_move_numbers[:,n] = game.black_moves + 1
 				board, pieces, mask = game.generate_X_mask()
-				black_board_parallel[n, :, :, :] = board
+				black_board_parallel[n] = board
 				black_pieces_parallel[:,n] = pieces
 				black_mask_parallel[:,n] = mask
 				black_game_numbers[:,n] = game.number

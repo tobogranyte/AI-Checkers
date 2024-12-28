@@ -1,6 +1,7 @@
 import numpy as np
 from Board import Board
 import random
+import SimulationEdge as SimulationEdge
 
 # Game class manages all game mechanics. The main program creates a new game,
 # assigns players to the game (which have already been given models), and issues the
@@ -92,7 +93,6 @@ class Game:
 		return self.player.other_color
 	
 	def make_move(self, move, piece_number):
-		# print(self.player.color, "move ", piece_number, ":", move)
 		board_move = np.zeros((96), dtype = 'int') # create output vector placeholder with zeros
 		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves from the board
 		if np.max(move) != 0: # there are legal moves
@@ -167,10 +167,18 @@ class Game:
 				
 	def generate_X_mask(self):
 		board_input, pieces_input = self.player.model.get_input_vector(self.board, self.player.color, jump_piece_number = self.jump_piece_number)
-		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves (48,) for current board position (0: illegal, 1:legal, 2:jump-legal)
-		# Can't have this be 0 because the next line divides by zero
+		# board_input - multi-dimensional vector with the board position from the vantage point of self.player.color
+		# pieces input - 1-dimensional vector with pieces data
+
+		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule)
+		# board_legal_moves - legal moves (96,) for current board position (0: illegal, 1:legal)
 
 		return board_input, pieces_input, board_legal_moves
+	
+	def make_simulation_edge(self):
+		simulation_edge = SimulationEdge(self) #make a simulationn edge from the current game state
+
+		return simulation_edge
 
 
 	def static_playtest(self):

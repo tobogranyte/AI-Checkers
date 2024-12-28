@@ -190,7 +190,7 @@ class PTC2P(nn.Module):
 		Y = Y[:, reward_non_zero_mask]
 		pieces = pieces[:, reward_non_zero_mask]
 		mask = mask[:, reward_non_zero_mask]
-		board = board[reward_non_zero_mask, :, :, :]
+		board = board[reward_non_zero_mask]
 
 		'''Setup'''
 		self.add_hooks()
