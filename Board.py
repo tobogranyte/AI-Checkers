@@ -5,8 +5,8 @@ class Board:
 
 	def __init__(self): # blank board: no pieces
 		self.state = np.zeros((4, 8, 4), int) #set all board positions to [0,0,0,0] vectors
-		self.red_numbers = np.zeros((8, 4), int) - 1 
-		self.black_numbers = np.zeros((8, 4), int) - 1 
+		self.red_numbers = np.zeros((8, 4), int) - 1
+		self.black_numbers = np.zeros((8, 4), int) - 1
 		self.jump_mask = np.array([1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1], dtype = 'int')
 
 	def setup(self): # set up all pieces in starting positions
@@ -98,9 +98,6 @@ class Board:
 			pieces = self.black_pieces
 		legal_moves = pieces[piece_number].legal_moves(self)
 		return legal_moves
-
-	def black_numbers(self):
-		return np.flip(np.flip(self.numbers, axis = 0), axis = 1)
 
 	def print_visual_state(self):
 		p = ["O", "r", "R", "b", "B"]

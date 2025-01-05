@@ -9,7 +9,7 @@ import time
 import csv
 import pdb
 
-class PTC2(nn.Module):
+class AGZ(nn.Module):
 
 	def __init__(self, name, identifier):
 		super().__init__()
@@ -26,34 +26,42 @@ class PTC2(nn.Module):
 		print(self.device)
 		
 		'''Convolutional layers'''
-		self.conv_3x3 = nn.Conv2d(4, 16, kernel_size=3, stride=1, padding=1)
-		self.conv_5x5 = nn.Conv2d(16, 32, kernel_size=5, stride=1, padding=2)
-		self.conv_7x7 = nn.Conv2d(32, 64, kernel_size=7, stride=1, padding=3)
-		self.conv_9x9 = nn.Conv2d(64, 128, kernel_size=9, stride=1, padding=4)
-		self.layer_norm_3x3 = nn.LayerNorm([16, 8, 4])
-		self.layer_norm_5x5 = nn.LayerNorm([32, 8, 4])
-		self.layer_norm_7x7 = nn.LayerNorm([64, 8, 4])
-		self.layer_norm_9x9 = nn.LayerNorm([128, 8, 4])
+		self.conv_3x3x128_0 = nn.Conv2d(4, 128, kernel_size=3, stride=1, padding=1)
+		self.projection_4_128 = nn.Conv2d(4, 128, kernel_size=1, stride=1, padding=0)
+		self.conv_5x5x128_1 = nn.Conv2d(128, 128, kernel_size=5, stride=1, padding=2)
+		self.conv_5x5x128_2 = nn.Conv2d(128, 128, kernel_size=5, stride=1, padding=2	)
+		self.conv_5x5x128_3 = nn.Conv2d(128, 128, kernel_size=5, stride=1, padding=2)
+		self.layer_norm_3x3x128_0 = nn.BatchNorm2d([128])
+		self.layer_norm_5x5x128_1 = nn.BatchNorm2d([128])
+		self.layer_norm_5x5x128_2 = nn.BatchNorm2d([128])
+		self.layer_norm_5x5x128_3 = nn.BatchNorm2d([128])
+		self.projection_layer_norm_3x3x128 = nn.BatchNorm2d([128])
+		self.residual_weight_0 = nn.Parameter(torch.tensor(0.1))
+		self.residual_weight_1 = nn.Parameter(torch.tensor(0.1))
+		self.residual_weight_2 = nn.Parameter(torch.tensor(0.1))
+		self.residual_weight_3 = nn.Parameter(torch.tensor(0.1))
 
 		'''Policy network'''
 		self.policy_layers_dims = [4505, 2048, 1024, 512, 256, 96] #  6-layer model
+		policy_layers = []
 		for n in range(len(self.policy_layers_dims) - 2):
-			layers.append(nn.Linear(self.policy_layers_dims[n], self.policy_layers_dims[n+1]))
-			layers.append(nn.LayerNorm(self.policy_layers_dims[n+1]))
-			layers.append(nn.ReLU())
-			layers.append(nn.Dropout(dropout_prob))
-		layers.append(nn.Linear(self.policy_layers_dims[n+1], self.policy_layers_dims[n+2]))
-		self.policy_output = nn.Sequential(*layers)
+			policy_layers.append(nn.Linear(self.policy_layers_dims[n], self.policy_layers_dims[n+1]))
+			policy_layers.append(nn.LayerNorm(self.policy_layers_dims[n+1]))
+			policy_layers.append(nn.ReLU())
+			policy_layers.append(nn.Dropout(dropout_prob))
+		policy_layers.append(nn.Linear(self.policy_layers_dims[n+1], self.policy_layers_dims[n+2]))
+		self.policy_output = nn.Sequential(*policy_layers)
 
 		'''Value network'''
-		self.value_layers_dims = [4505, 2048, 1024, 512, 256, 96, 1] #  7-layer model
+		self.value_layers_dims = [4096, 2048, 1024, 512, 256, 96, 1] #  7-layer model
+		value_layers = []
 		for n in range(len(self.value_layers_dims) - 2):
-			layers.append(nn.Linear(self.value_layers_dims[n], self.value_layers_dims[n+1]))
-			layers.append(nn.LayerNorm(self.value_layers_dims[n+1]))
-			layers.append(nn.ReLU())
-			layers.append(nn.Dropout(dropout_prob))
-		layers.append(nn.Linear(self.value_layers_dims[n+1], self.value_layers_dims[n+2]))
-		self.value_output = nn.Sequential(*layers)
+			value_layers.append(nn.Linear(self.value_layers_dims[n], self.value_layers_dims[n+1]))
+			value_layers.append(nn.LayerNorm(self.value_layers_dims[n+1]))
+			value_layers.append(nn.ReLU())
+			value_layers.append(nn.Dropout(dropout_prob))
+		value_layers.append(nn.Linear(self.value_layers_dims[n+1], self.value_layers_dims[n+2]))
+		self.value_output = nn.Sequential(*value_layers)
 
 		
 		self.optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
@@ -98,15 +106,15 @@ class PTC2(nn.Module):
 
 
 	def forward(self, board, pieces, mask, y=None):
-		# Apply convolutions and ReLU
-		out_3x3 = F.relu(self.layer_norm_3x3(self.conv_3x3(board)))  # Shape: (batch_size, 16, 8, 4)
-		out_5x5 = F.relu(self.layer_norm_5x5(self.conv_5x5(out_3x3)))  # Shape: (batch_size, 32, 8, 4)
-		out_7x7 = F.relu(self.layer_norm_7x7(self.conv_7x7(out_5x5)))  # Shape: (batch_size, 64, 8, 4)
-		out_9x9 = F.relu(self.layer_norm_9x9(self.conv_9x9(out_7x7)))  # Shape: (batch_size, 128, 8, 4)
+		projection_128_0 = self.projection_layer_norm_3x3x128(self.projection_4_128(board))
+		out_3x3x128_0 = (F.relu(self.layer_norm_3x3x128_0(self.conv_3x3x128_0(board))) * self.residual_weight_0) + projection_128_0# Shape: (batch_size, 16, 8, 4)
+		out_5x5x128_1 = (F.relu(self.layer_norm_5x5x128_1(self.conv_5x5x128_1(out_3x3x128_0))) * self.residual_weight_1) + projection_128_0 # Shape: (batch_size, 32, 8, 4)
+		out_5x5x128_2 = (F.relu(self.layer_norm_5x5x128_2(self.conv_5x5x128_2(out_5x5x128_1))) * self.residual_weight_2) + projection_128_0 # Shape: (batch_size, 64, 8, 4)
+		out_5x5x128_3 = (F.relu(self.layer_norm_5x5x128_3(self.conv_5x5x128_3(out_5x5x128_2))) * self.residual_weight_3) + projection_128_0 # Shape: (batch_size, 128, 8, 4)
 
 		
 		# Flatten convolutional output for the fully connected layers
-		out_conv_flat = out_9x9.view(out_9x9.size(0), -1)  # Shape: (batch_size, 32 * 8 * 4)
+		out_conv_flat = out_5x5x128_3.view(out_5x5x128_3.size(0), -1)  # Shape: (batch_size, 32 * 8 * 4)
 		
 		# Concatenate with the direct input vector
 		combined_input = torch.cat((out_conv_flat, pieces), dim=1)  # Shape: (batch_size, 32*8*4 + input_size)
@@ -115,11 +123,9 @@ class PTC2(nn.Module):
 		policy_logits = self.policy_output(combined_input) / self.temperature
 		masked_policy_logits = policy_logits.masked_fill(mask == 0, float('-inf'))  # Mask illegal moves
 		policy_output = F.softmax(masked_policy_logits, dim=1)  # Apply softmax only on legal moves
-		if torch.isnan(masked_probs).any():
-			pdb.set_trace()
 
 		'''Feed into value network'''
-		value_logits = self.value_output(combined_input)
+		value_logits = self.value_output(out_conv_flat)
 		value_output = torch.tanh(value_logits)
 
 		return policy_output, value_output
@@ -169,10 +175,11 @@ class PTC2(nn.Module):
 		mask = mask.to(self.device)
 		self.eval()
 		with torch.no_grad():
-			x = self(board, pieces, mask)
+			policy_output, value_output = self(board, pieces, mask)
 			
-		x = self.deconvert(x)
-		return x
+		policy_output = self.deconvert(policy_output)
+		value_output = self.deconvert(value_output)
+		return policy_output, value_output
 
 	def generate_move(self, AL): # generate a move from a probabilities vector
 		choice = np.squeeze(np.random.choice(96, 1, p=AL.flatten()/np.sum(AL.flatten()))) # roll the dice and p b
@@ -182,7 +189,7 @@ class PTC2(nn.Module):
 
 		return one_hot_move, piece_number, move
 
-	def train_model(self, Y, board, pieces, mask, reward):
+	def train_model(self, Y, V, board, pieces, mask):
 		"""
 		y: parallel set of unit-normalized legal move vectors to calculate cost.
 		x: parallel set of input vectors.
@@ -199,12 +206,6 @@ class PTC2(nn.Module):
 		params = {}
 
 		'''Create filtered arrays'''
-		reward_non_zero_mask = np.squeeze(reward, axis=0) != 0
-		reward = reward[:, reward_non_zero_mask]
-		Y = Y[:, reward_non_zero_mask]
-		pieces = pieces[:, reward_non_zero_mask]
-		mask = mask[:, reward_non_zero_mask]
-		board = board[reward_non_zero_mask]
 
 		'''Setup'''
 		self.add_hooks()
@@ -217,10 +218,10 @@ class PTC2(nn.Module):
 		board = board.to(self.device)
 		Y = self.convert(Y)
 		Y = Y.to(self.device)
+		V = self.convert(V)
+		V = V.to(self.device)
 		mask_t = self.convert(mask)
 		mask_t = mask_t.to(self.device)
-		reward = self.convert(reward)
-		reward = reward.to(self.device)
 
 		'''Timing'''
 		train_init_end = time.time()
@@ -232,30 +233,18 @@ class PTC2(nn.Module):
 
 
 		torch.cuda.reset_peak_memory_stats()
-		X = self(board, pieces, mask_t)
+		policy_output, value_output = self(board, pieces, mask_t)
+
+
 		forward_prop_end = time.time()
 		forward_prop_time = forward_prop_end - forward_prop_start
 		training_stats.append(forward_prop_time)
 		backward_prop_start = time.time()
-		log_prob = torch.log(X + epsilon)
-		reward_win = torch.where(reward > 0, reward, 0)
-		reward_loss = torch.where(reward < 0, reward, 0)
-		log_prob_move = log_prob[Y == 1].unsqueeze(1)
-		cost_win = - reward_win * log_prob_move
-		cost_loss = - reward_loss * log_prob_move
-		cost_win = cost_win.sum()
-		cost_loss = cost_loss.sum()
-		cost = cost_win.sum() + cost_loss.sum()
-		with open(f"Torch_{self.identifier}/cost.csv", mode="a", newline="") as file:
-			writer = csv.writer(file)
-			writer.writerow([cost.item(), cost_win.item(), cost_loss.item(), reward_win.sum().item(), reward_loss.sum().item(), (reward == 0).sum().item()])  # Write the list as a new row		self.optimizer.zero_grad(set_to_none=True)
+		policy_cost = -torch.sum(Y * torch.log(policy_output + epsilon), dim=-1).mean()
+		value_cost = F.mse_loss(value_output, V)
+		cost = policy_cost + value_cost
 		cost.backward()
 		max_mem = torch.cuda.max_memory_allocated()
-		mem_stats = [self.trainings, max_mem, reward.shape]
-		print(f"Peak memory used: {max_mem} bytes")
-		with open(f"Torch_{self.identifier}/max_mem.csv", mode="a", newline="") as file:
-			writer = csv.writer(file)
-			writer.writerow(mem_stats)  # Write the list as a new row
 		self.optimizer.step()
 		backward_prop_end = time.time()
 		backward_prop_time = backward_prop_end - backward_prop_start
@@ -268,6 +257,7 @@ class PTC2(nn.Module):
 		self.save_weights()
 		mins = []
 		maxes = []
+		weights = [self.residual_weight_0, self.residual_weight_1, self.residual_weight_2, self.residual_weight_3]
 		L = len(self.weights)
 		for l in reversed(range(L)):
 			mins.append(np.amin(self.weights[l]))
@@ -281,6 +271,7 @@ class PTC2(nn.Module):
 		params["trainings"] = self.trainings
 		params["mins"] = mins
 		params["maxes"] = maxes
+		params["weights"] = weights
 
 		print(torch.cuda.memory_allocated())
 		bookkeeping_end = time.time()
@@ -294,7 +285,7 @@ class PTC2(nn.Module):
 			writer = csv.writer(file)
 			writer.writerow(training_stats)  # Write the list as a new row
 
-		return cost.detach().cpu().numpy().astype(np.float64), cost_win.detach().cpu().numpy().astype(np.float64), cost_loss.detach().cpu().numpy().astype(np.float64), params
+		return cost.detach().cpu().numpy().astype(np.float64), params
 
 
 	def _save_activation(self, name):
@@ -302,7 +293,12 @@ class PTC2(nn.Module):
 		def hook(module, input, output):
 			layer_type = type(module).__name__
 			activation_name = f"{name}_{layer_type}"
-			self.activations[activation_name] = output.detach().cpu()
+			if isinstance(output, tuple):
+				# Convert each tensor in the tuple to CPU and detach
+				self.activations[activation_name] = [out.detach().cpu() for out in output]
+			else:
+				# Output is a single tensor
+				self.activations[activation_name] = output.detach().cpu()
 		return hook
 
 	def save_weights(self):
@@ -313,7 +309,10 @@ class PTC2(nn.Module):
 				self.weights.append(layer.weight.detach().cpu().numpy())
 
 	def convert(self, x):
+		#try:
 		x = torch.from_numpy(np.array(x, dtype=np.float32)).transpose(0,1)
+		#except:
+			#pdb.set_trace()
 		return x
 
 	def plot_activations(self):

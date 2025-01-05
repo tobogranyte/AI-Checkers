@@ -100,23 +100,19 @@ def save_plots(filename):
 	"""
 	plot_data = {}
 	for name, line in lines.items():
-		try:
-			# Convert NumPy arrays to lists explicitly
-			x_data = line.get_xdata()
-			y_data = line.get_ydata()
-			
-			if isinstance(x_data, np.ndarray):
-				x_data = x_data.tolist()
-			if isinstance(y_data, np.ndarray):
-				y_data = y_data.tolist()
+		# Convert NumPy arrays to lists explicitly
+		x_data = line.get_xdata()
+		y_data = line.get_ydata()
+		
+		if isinstance(x_data, np.ndarray):
+			x_data = x_data.tolist()
+		if isinstance(y_data, np.ndarray):
+			y_data = y_data.tolist()
 
-			plot_data[name] = {
-				"x": x_data,
-				"y": y_data
-			}
-		except Exception as e:
-			print(f"Error processing line '{name}': {e}")
-			continue
+		plot_data[name] = {
+			"x": x_data,
+			"y": y_data
+		}
 
 	try:
 		with open(f"Torch_{identifier}/{filename}", 'w') as f:

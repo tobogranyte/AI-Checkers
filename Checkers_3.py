@@ -15,7 +15,9 @@ import pdb
 import json
 from datetime import datetime
 import os
-
+from SimulationEdge import SimulationEdge
+from concurrent.futures import ProcessPoolExecutor
+import itertools
 
 def datetime_to_string(dt: datetime) -> str:
 	return dt.strftime('%Y%m%d%H%M%S')
@@ -75,16 +77,10 @@ def update_plots(new_data):
 	add_point(lines["boot_ver"], new_data["games"], new_data["boot_ver"])
 	add_point(lines["cost_hist"], new_data["games"], new_data["cost_hist"])
 	add_point(lines["draw_pct"], new_data["games"], new_data["draw_pct"])
-	add_point(lines["max_hist0"], new_data["games"], new_data["max_hist0"])
-	add_point(lines["max_hist1"], new_data["games"], new_data["max_hist1"])
-	add_point(lines["max_hist2"], new_data["games"], new_data["max_hist2"])
-	add_point(lines["max_hist3"], new_data["games"], new_data["max_hist3"])
-	add_point(lines["max_hist4"], new_data["games"], new_data["max_hist4"])
-	add_point(lines["min_hist0"], new_data["games"], new_data["min_hist0"])
-	add_point(lines["min_hist1"], new_data["games"], new_data["min_hist1"])
-	add_point(lines["min_hist2"], new_data["games"], new_data["min_hist2"])
-	add_point(lines["min_hist3"], new_data["games"], new_data["min_hist3"])
-	add_point(lines["min_hist4"], new_data["games"], new_data["min_hist4"])
+	add_point(lines["weights0"], new_data["games"], new_data["weights0"])
+	add_point(lines["weights1"], new_data["games"], new_data["weights1"])
+	add_point(lines["weights2"], new_data["games"], new_data["weights2"])
+	add_point(lines["weights3"], new_data["games"], new_data["weights3"])
 
 	# Update plot limits and redraw
 	for ax in [ax1, ax2, ax3, ax4, ax5, ax6, ax6]:
@@ -179,46 +175,67 @@ def load_data():
 	identifier = data["identifier"]
 	print(f"Data loaded from data.json")
 
-def set_outputs(self, sim_edge_set, policy_output, value_output depth):
+def set_outputs(sim_edge_set, policy_output, value_output, depth):
 	for n, sim_edge in enumerate(sim_edge_set):
-		sim_edge.set_policy_output(policy_output[:, n], depth)
-		sim_edge.set_value_output(value_output[:, n], depth)
+		sim_edge.set_policy_output(policy_output[:, n])
+		sim_edge.set_value_output(value_output[:, n])
 
-def set_child_outputs(self, sim_edge_set, policy_output, value_output, depth):
+def set_child_outputs(sim_edge_set, policy_output, value_output, number, index, depth):
 	for n, sim_edge in enumerate(sim_edge_set):
-		sim_edge.set_policy_output(policy_output[:, n], depth)
-		sim_edge.set_value_output(value_output[:, n], depth)
+		if not sim_edge.singleton:
+			policy_edge = policy_output[:, number == sim_edge.number] # create trimmed policy output just for the one parent game/sim edge
+			value_edge = value_output[:, number == sim_edge.number] # create trimmed value output just for the one parent game/sim edge
+			index_edge = index[number == sim_edge.number] # create trimmed index just for the one parent game/sim edge
+			sim_edge.set_child_outputs(policy_edge, value_edge, index_edge, depth) # send trimmed arrays to parent
 
-def create_children(self, sim_edge_set, depth):
+def create_children(sim_edge_set, depth):
 	for n, sim_edge in enumerate(sim_edge_set):
 		if sim_edge.mask.sum() > 1:
 			sim_edge.create_children(depth)
 		else:
 			sim_edge.set_singleton()
 
-def set_child_UCBs(self, sim_edge_set, depth):
+def set_child_UCBs(sim_edge_set, depth):
 	for n, sim_edge in enumerate(sim_edge_set):
-		sim_edge.set_child_UCBs(depth)
+		if not sim_edge.singleton:
+			sim_edge.set_child_UCBs(depth)
 
-def choose_move(self, sim_edge_set, depth):
-	for n, sim_edge in enumerate(sim_edge_set):
-		sim_edge.choose_move(depth)
 
-def get_child_inputs(self, sim_edge_set, depth):
+def get_child_inputs(sim_edge_set, depth):
 	board_parallel = []
 	pieces_parallel = []
 	mask_parallel = []
 	game_parallel = []
 	index_parallel = []
 	for n, sim_edge in enumerate(sim_edge_set):
-		board, pieces, mask, number, index = sim_edge.get_child_inputs(depth)
-		board_parallel.append(board)
-		pieces_parallel.append(pieces)
-		mask_parallel.append(mask)
-		game_parallel.append(number)
-		index_parallel.append(index)
-	return np.vstack(board_parallel), np.hstack(pieces_parallel), np.hstack(mask_parallel), np.hstack(game_parallel), np.hstack(index_parallel)
+		if not sim_edge.singleton:
+			board, pieces, mask, number, index = sim_edge.get_child_inputs(depth)
+			board_parallel.append(board)
+			pieces_parallel.append(pieces)
+			mask_parallel.append(mask)
+			game_parallel.append(number)
+			index_parallel.append(index)
+	if len(board_parallel) > 0:
+		return np.vstack(board_parallel), np.hstack(pieces_parallel), np.hstack(mask_parallel), np.hstack(game_parallel), np.hstack(index_parallel)
+	else:
+		return None, None, None, None, None
 
+def update_N(sim_edge_set):
+	for n, sim_edge in enumerate(sim_edge_set):
+		if not sim_edge.singleton:
+			sim_edge.update_N()
+
+def update_Q(sim_edge_set):
+	for n, sim_edge in enumerate(sim_edge_set):
+		if not sim_edge.singleton:
+			sim_edge.update_Q()
+
+def get_Y(sim_edge_set):
+	Y = np.zeros((96, len(sim_edge_set)))
+	N = np.zeros((96, len(sim_edge_set)))
+	for n, sim_edge in enumerate(sim_edge_set):
+		Y[:, n], N[:, n] = sim_edge.get_Y()
+	return Y, N
 
 
 
@@ -243,9 +260,9 @@ black_move_total = 0
 bootstrap_version = 0
 bootstrap_average = 0
 discount_factor = 0.95
-loss_training_percentage = 0.4
-exploration_depth = 6
-exploration_traversals = 50
+loss_training_percentage = .001
+exploration_depth = 10
+exploration_traversals = 10
 params = {}
 resume = input("Resume [Y/n]?")
 
@@ -336,16 +353,10 @@ if input("Play game [Y/n]:") == "Y":
 		"boot_ver": ax3.plot([], [], 'b-')[0],
 		"cost_hist": ax4.plot([], [], 'k-')[0],
 		"draw_pct": ax5.plot([], [], 'k-')[0],
-		"max_hist0": ax6.plot([], [], 'r-')[0],
-		"max_hist1": ax6.plot([], [], 'g-')[0],
-		"max_hist2": ax6.plot([], [], 'b-')[0],
-		"max_hist3": ax6.plot([], [], 'c-')[0],
-		"max_hist4": ax6.plot([], [], 'm-')[0],
-		"min_hist0": ax6.plot([], [], 'r--')[0],
-		"min_hist1": ax6.plot([], [], 'g--')[0],
-		"min_hist2": ax6.plot([], [], 'b--')[0],
-		"min_hist3": ax6.plot([], [], 'c--')[0],
-		"min_hist4": ax6.plot([], [], 'm--')[0]
+		"weights0": ax6.plot([], [], 'r-')[0],
+		"weights1": ax6.plot([], [], 'g-')[0],
+		"weights2": ax6.plot([], [], 'b-')[0],
+		"weights3": ax6.plot([], [], 'c-')[0]
 	}	
 
 	plt.show()
@@ -379,13 +390,18 @@ if input("Play game [Y/n]:") == "Y":
 		red_game_numbers_batch = []
 		black_move_numbers_batch = []
 		red_move_numbers_batch = []
+		red_Y_parallel_batch = []
+		black_Y_parallel_batch = []
+		red_N_parallel_batch = []
+		black_N_parallel_batch = []
 		create_games_end = time.time()
 		games_set = train_games
 		batch_total_games = 0
-		game_reward = np.zeros((1,0), dtype=int)
+		game_value = np.full((1,0), 0.5)
 		game_red_moves = np.zeros((1,0), dtype=int)
 		game_black_moves = np.zeros((1,0), dtype=int)
 		batch_count = 0
+		depth = 0
 		'''Full training and game-play loop'''
 		while not full_batch:
 			create_games_start = time.time()
@@ -394,7 +410,7 @@ if input("Play game [Y/n]:") == "Y":
 			black_game_set = []
 			red_sim_edge_set = []
 			black_sim_edge_set = []
-			game_reward = np.hstack([game_reward, np.zeros((1, games_set), dtype=int)])
+			game_value = np.hstack([game_value, np.full((1, games_set), 0.5)])
 			game_red_moves = np.hstack([game_red_moves, np.zeros((1, games_set), dtype=int)]) # Total number of red moves for each game in a game set
 			game_black_moves = np.hstack([game_black_moves, np.zeros((1, games_set), dtype=int)]) # total number of black moves for each game in a game set
 			print("Creating games")
@@ -408,7 +424,11 @@ if input("Play game [Y/n]:") == "Y":
 				Create a game. This creates a game, setting all game parameters and also choosing the starting
 				player (red or black) at random.
 				'''
-				game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = (batch_total_games) + count)
+				if count % 2 == 0:
+					side = "Red"
+				else:
+					side = "Black"
+				game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = (batch_total_games) + count, side = side)
 				games.append(game)
 				# append the game to the batch of games
 			'''
@@ -418,13 +438,13 @@ if input("Play game [Y/n]:") == "Y":
 			for n, game in enumerate(games):
 				if game.player_color() == "Red": # game with a red move
 					red_game_set.append(game) # append to list of games with red moves
-					red_sim_edge_set.append(game.make_simulation_edge())
+					red_sim_edge_set.append(game.make_simulation_edge(depth, game.player_color))
 				else: #game with a black move
 					black_game_set.append(game) #append to list of games with black moves
-					black_sim_edge_set.append(game.make_simulation_edge())
+					black_sim_edge_set.append(game.make_simulation_edge(depth, game.player_color))
+
 			create_games_time = create_games_end - create_games_start
 			stats.append(create_games_time)
-
 			play_games_start = time.time()
 			'''
 			Play all games in each set in parallel, moving through each step of making a move
@@ -432,12 +452,15 @@ if input("Play game [Y/n]:") == "Y":
 			'''
 			print("Playing games")
 			while not done:
+				print("New move")
 				red_pieces_parallel = np.zeros((409, len(red_game_set))) # X values for all games where it's a red move (column vector * number of red move games)
 				black_pieces_parallel = np.zeros((409, len(black_game_set))) # X values for all games where it's a black move (column vector * number of black move games)
 				red_board_parallel = np.zeros((len(red_game_set), 4, 8, 4)) 
 				black_board_parallel = np.zeros((len(black_game_set), 4, 8, 4)) 
-				red_Y_parallel = np.zeros((96, len(red_game_set))) # unit normalized legal moves label
-				black_Y_parallel = np.zeros((96, len(black_game_set))) # unit normalized legal moves label
+				red_Y_parallel = np.zeros((96, len(red_game_set))) # red probabilities target
+				black_Y_parallel = np.zeros((96, len(black_game_set))) # black probabilities target
+				red_N_parallel = np.zeros((96, len(red_game_set))) # red probabilities target
+				black_N_parallel = np.zeros((96, len(black_game_set))) # black probabilities target
 				red_mask_parallel = np.zeros((96, len(red_game_set))) # non-normalized legal moves label
 				black_mask_parallel = np.zeros((96, len(black_game_set))) # non-normalized legal moves label
 				red_moves_parallel = np.zeros((96, len(red_game_set)))
@@ -446,6 +469,10 @@ if input("Play game [Y/n]:") == "Y":
 				red_game_numbers = np.zeros((1, len(red_game_set)), dtype=int) # game number for this red move across all the games in the red game set
 				black_move_numbers = np.zeros((1, len(black_game_set)), dtype=int) # red move number (zero indexed) for this move across all games in the red game set.
 				red_move_numbers = np.zeros((1, len(red_game_set)), dtype=int) # red move number (zero indexed) for this move across all games in the red game set.
+				red_singletons = np.zeros((1, len(red_game_set)), dtype=int)
+				black_singletons = np.zeros((1, len(black_game_set)), dtype=int)
+				traversal = 0 # First traversal for this move
+				depth = 0 # First traversal for this move
 					
 				'''Get input and mask vectors for all games for forward pass'''
 				for n, sim_edge in enumerate(red_sim_edge_set):
@@ -455,7 +482,7 @@ if input("Play game [Y/n]:") == "Y":
 					Also for each sim_edge, get the Y (legal moves) and add it to the red_Y_batch.
 					'''
 					red_move_numbers[:,n] = sim_edge.get_red_moves(depth) + 1 # add what move number this is to this sample in the training batch. For training.
-					red_game_numbers[:,n] = sim_edge.get_number(depth) # the sim_edge number of this sample in the batch of sim_edges being played
+					red_game_numbers[:,n] = sim_edge.get_number() # the sim_edge number of this sample in the batch of sim_edges being played
 					board, pieces, mask = sim_edge.generate_X_mask(depth) # For training and forward pass.
 					red_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
 					red_board_parallel[n] = board
@@ -467,7 +494,7 @@ if input("Play game [Y/n]:") == "Y":
 					Also for each sim_edge, get the Y (legal moves) and add it to the black_Y_batch.
 					'''
 					black_move_numbers[:,n] = sim_edge.get_black_moves(depth) + 1
-					black_game_numbers[:,n] = sim_edge.get_number(depth)
+					black_game_numbers[:,n] = sim_edge.get_number()
 					board, pieces, mask = sim_edge.generate_X_mask(depth)
 					black_board_parallel[n] = board
 					black_pieces_parallel[:,n] = pieces
@@ -486,45 +513,42 @@ if input("Play game [Y/n]:") == "Y":
 				'''
 				set_outputs(red_sim_edge_set, red_model_policy_output, red_model_value_output, depth)
 				set_outputs(black_sim_edge_set, black_model_policy_output, black_model_value_output, depth)
-					
 
-				traversal = 0 # First traversal for this move
 
 				while traversal < exploration_traversals: # not yet enough traversals
 					depth = 0
 					while depth < exploration_depth: # not yet deep enough on this traversal
 						'''
-						1. For depth = n, create children
+						with ProcessPoolExecutor(max_workers=12) as executor:
+							executor.map(create_children, red_game_set, itertools.repeat(depth))
+						with ProcessPoolExecutor(max_workers=12) as executor:
+							executor.map(create_children, black_game_set, itertools.repeat(depth))
 						'''
-
 						create_children(red_sim_edge_set, depth)
 						create_children(black_sim_edge_set, depth)
 
-						red_edge_board_parallel, red_edge_pieces_parallel, red_edge_mask_parallel, red_index_parallel, red_number_parallel = get_child_inputs(red_sim_edge_set, depth)
-						black_edge_board_parallel, black_edge_pieces_parallel, black_edge_mask_parallel, black_index_parallel, black_number_parallel = get_child_inputs(black_sim_edge_set, depth)
-
-						red_model_policy_output, red_model_value_output = red_model.forward_pass(red_edge_board_parallel, red_edge_pieces_parallel, red_edge_mask_parallel) # get matrix of vector probabilities for the next move in all red games
-						black_model_policy_output, black_model_value_output = black_model.forward_pass(black_edge_board_parallel, black_edge_pieces_parallel, black_edge_mask_parallel) # get matrix of vector probabilities for the next move in all red games
-
-						set_child_outputs(red_sim_edge_set, red_model_policy_output, red_model_value_output, depth)
-						set_child_outputs(black_sim_edge_set, black_model_policy_output, black_model_value_output, depth)
-
+						red_edge_board_parallel, red_edge_pieces_parallel, red_edge_mask_parallel, red_number_parallel, red_index_parallel = get_child_inputs(red_sim_edge_set, depth)
+						if red_edge_board_parallel is not None and not np.array_equal(red_edge_board_parallel, np.array([[None]])) and red_edge_board_parallel.size != 0:
+							se_red_model_policy_output, se_red_model_value_output = red_model.forward_pass(red_edge_board_parallel, red_edge_pieces_parallel, red_edge_mask_parallel) # get matrix of vector probabilities for the next move in all red games
+							set_child_outputs(red_sim_edge_set, se_red_model_policy_output, se_red_model_value_output, red_number_parallel, red_index_parallel, depth)
 						set_child_UCBs(red_sim_edge_set, depth)
+
+						black_edge_board_parallel, black_edge_pieces_parallel, black_edge_mask_parallel, black_number_parallel, black_index_parallel = get_child_inputs(black_sim_edge_set, depth)
+						if black_edge_board_parallel is not None and not np.array_equal(black_edge_board_parallel, np.array([[None]])) and black_edge_board_parallel.size != 0:
+							se_black_model_policy_output, se_black_model_value_output = black_model.forward_pass(black_edge_board_parallel, black_edge_pieces_parallel, black_edge_mask_parallel) # get matrix of vector probabilities for the next move in all red games
+							set_child_outputs(black_sim_edge_set, se_black_model_policy_output, se_black_model_value_output, black_number_parallel, black_index_parallel, depth)
 						set_child_UCBs(black_sim_edge_set, depth)
 
-						choose_move(red_sim_edge_set, depth)
-						choose_move(black_sim_edge_set, depth)
+						depth += 1
+					update_N(red_sim_edge_set)
+					update_N(black_sim_edge_set)
 
+					update_Q(red_sim_edge_set)
+					update_Q(black_sim_edge_set)
+					traversal += 1
 
-
-				'''Do forward pass (get probabilities) for next move across all red games'''
-				if len(red_game_set) > 0:
-					red_model_policy_output, red_model_value_output = red_model.forward_pass(red_board_parallel, red_pieces_parallel, red_mask_parallel) # get matrix of vector probabilities for the next move in all red games
-
-				'''Do forward pass (get probabilities) for next move across all black games'''
-				if len(black_game_set) > 0:
-					black_model_policy_output, black_model_value_output = black_model.forward_pass(black_board_parallel, black_pieces_parallel, black_mask_parallel) # get matrix of vector probabilities for the next move in all black games
-
+				red_Y_parallel, red_N_parallel = get_Y(red_sim_edge_set)
+				black_Y_parallel, black_N_parallel = get_Y(black_sim_edge_set)
 				'''Make move for all games based on probabilities'''
 				for n, game in enumerate(red_game_set):
 					'''
@@ -533,14 +557,15 @@ if input("Play game [Y/n]:") == "Y":
 					Make the move.
 					'''
 					if np.count_nonzero(red_mask_parallel[:,n]) != 0: # if there are any legal moves at all
-						one_hot_move, piece_number, move = red_model.generate_move(red_model_output[:,n]) # make a dice-roll attempt
+						one_hot_move, piece_number, move = red_model.generate_move(red_model_policy_output[:,n]) # make a dice-roll attempt
 						while np.count_nonzero(one_hot_move * red_mask_parallel[:,n]) == 0: # check if the current proposed move is illegal
+							pdb.set_trace()
 							print('Illegal move')
-							one_hot_move, piece_number, move = red_model.generate_move(red_model_output[:,n]) # roll the dice again
+							one_hot_move, piece_number, move = red_model.generate_move(red_model_policy_output[:,n]) # roll the dice again
 						red_moves_parallel[:,n] = one_hot_move # log the move made
 						win, draw = game.make_move(move, piece_number) # have the game make the move
 						if win: # if it was a win or draw (game over)
-							game_reward[:, game.number] = 1 # positive reward for this game because red won
+							game_value[:, game.number] = 1 # positive reward for this game because red won
 							tally_and_print_stats(game)
 						elif draw:
 							tally_and_print_stats(game)
@@ -551,14 +576,14 @@ if input("Play game [Y/n]:") == "Y":
 					Make the move.
 					'''
 					if np.count_nonzero(black_mask_parallel[:,n]) != 0: # if there are any legal moves at all
-						one_hot_move, piece_number, move = black_model.generate_move(black_model_output[:,n]) # make a dice-roll attempt
+						one_hot_move, piece_number, move = black_model.generate_move(black_model_policy_output[:,n]) # make a dice-roll attempt
 						while np.count_nonzero(one_hot_move * black_mask_parallel[:,n]) == 0: # check if the current proposed move is illegal
 							print('Illegal move')
-							one_hot_move, piece_number, move = black_model.generate_move(black_model_output[:,n]) # roll the dice again
+							one_hot_move, piece_number, move = black_model.generate_move(black_model_policy_output[:,n]) # roll the dice again
 						black_moves_parallel[:,n] = one_hot_move # log the move made
 						win, draw = game.make_move(move, piece_number) # have the game make the move
 						if win: # if it was a win or draw (game over)
-							game_reward[:,game.number] = -1 # negatie reward for this game because red lost
+							game_value[:,game.number] = 0 # negative reward for this game because red lost
 							tally_and_print_stats(game)
 						elif draw:
 							tally_and_print_stats(game)
@@ -574,8 +599,15 @@ if input("Play game [Y/n]:") == "Y":
 				red_game_numbers_batch.append(red_game_numbers) # A master list of the game numbers of every red move in the batch
 				black_move_numbers_batch.append(black_move_numbers)
 				red_move_numbers_batch.append(red_move_numbers)
+				red_Y_parallel_batch.append(red_Y_parallel)
+				black_Y_parallel_batch.append(black_Y_parallel)
+				red_N_parallel_batch.append(red_N_parallel)
+				black_N_parallel_batch.append(black_N_parallel)
+
 				red_game_set = []
 				black_game_set = []
+				red_sim_edge_set = []
+				black_sim_edge_set = []
 				number = None
 				done = True
 				for n, game in enumerate(games):
@@ -586,14 +618,16 @@ if input("Play game [Y/n]:") == "Y":
 						done = False
 						if game.player_color() == "Red": # game with a red move
 							red_game_set.append(game) # append to list of games with red moves
+							red_sim_edge_set.append(game.make_simulation_edge(0, game.player_color))
 						else: #game with a black move
 							black_game_set.append(game) #append to list of games with black moves
+							black_sim_edge_set.append(game.make_simulation_edge(0, game.player_color))
 				play_games_end = time.time()
-			loss_total = (np.squeeze(game_reward) == -1).sum()
-			win_total = (np.squeeze(game_reward) == 1).sum()
+			loss_total = (np.squeeze(game_value) == 0).sum()
+			win_total = (np.squeeze(game_value) == 1).sum()
 			batch_total_games += games_set
 			if batch_total_games == train_games:
-				draw_total = (np.squeeze(game_reward) == 0).sum()
+				draw_total = (np.squeeze(game_value) == 0).sum()
 			if loss_total < int((train_games - draw_total) * loss_training_percentage):
 				print("Not enough losses")
 				batch_count += 1
@@ -606,9 +640,8 @@ if input("Play game [Y/n]:") == "Y":
 				target_win_total = int((1 - loss_training_percentage) * loss_total / loss_training_percentage)
 				win_purge = win_total - target_win_total
 				if win_purge > 0 and batch_total_games != train_games:
-					print("Purging wins")
 					purge = True
-					winning_game_list_mask = np.squeeze(game_reward, axis=0) == 1
+					winning_game_list_mask = np.squeeze(game_value, axis=0) == 1
 					game_number_array = np.arange(batch_total_games)
 					winning_game_numbers = np.random.permutation(game_number_array[winning_game_list_mask])
 					winning_game_purge = winning_game_numbers[:win_purge]
@@ -616,29 +649,50 @@ if input("Play game [Y/n]:") == "Y":
 				
 			play_games_time = play_games_end - play_games_start
 			stats.append(play_games_time)
+		V = game_value[:, np.squeeze(np.hstack(red_game_numbers_batch))] #assign a win/loss value to each game
+		data = {
+			"red_pieces_parallel_batch": np.hstack(red_pieces_parallel_batch),
+			"black_pieces_parallel_batch": np.hstack(black_pieces_parallel_batch),
+			"red_board_parallel_batch": np.vstack(red_board_parallel_batch),
+			"black_board_parallel_batch": np.vstack(black_board_parallel_batch),
+			"red_mask_parallel_batch": np.hstack(red_mask_parallel_batch),
+			"black_mask_parallel_batch": np.hstack(black_mask_parallel_batch),
+			"red_moves_parallel_batch": np.hstack(red_moves_parallel_batch),
+			"black_moves_parallel_batch": np.hstack(black_moves_parallel_batch),
+			"red_game_numbers_batch": np.hstack(red_game_numbers_batch),
+			"black_game_numbers_batch": np.hstack(black_game_numbers_batch),
+			"red_move_numbers_batch": np.hstack(red_move_numbers_batch),
+			"black_move_numbers_batch": np.hstack(black_move_numbers_batch),
+			"red_Y_parallel_batch": np.hstack(red_Y_parallel_batch),
+			"black_Y_parallel_batch": np.hstack(black_Y_parallel_batch),
+			"red_N_parallel_batch": np.hstack(red_N_parallel_batch),
+			"black_N_parallel_batch": np.hstack(black_N_parallel_batch),
+			"V": V,
+			"game_value": game_value
+			}
+		np.savez("arrays.npz", **data)
 
 		train_model_start = time.time()
 		if (train == "Y" or train_red == "Y" or train_black == "Y"):
 			if self_play:
 				print("Training model...")
 				print("Training Red...")
-				Y = np.hstack(red_moves_parallel_batch)
+				Y = np.hstack(red_Y_parallel_batch)
 				pieces = np.hstack(red_pieces_parallel_batch)
 				board = np.vstack(red_board_parallel_batch)
 				mask = np.hstack(red_mask_parallel_batch)
-				reward = game_reward[:, np.squeeze(np.hstack(red_game_numbers_batch))] #assign a reward to each game
+				V = game_value[:, np.squeeze(np.hstack(red_game_numbers_batch))] #assign a win/loss value to each game
 				game_red_moves_batch = game_red_moves[:, np.squeeze(np.hstack(red_game_numbers_batch))] # total number of red moves for the game that this move was part of
-				discount_factor_batch = discount_factor ** (game_red_moves_batch - np.hstack(red_move_numbers_batch))
-				reward = reward * discount_factor_batch
 				if purge:
 					Y = Y[:, winning_games_mask]
+					V = V[:, winning_games_mask]
 					pieces = pieces[:, winning_games_mask]
 					board = board[winning_games_mask]
 					mask = mask[:, winning_games_mask]
-					reward = reward[:, winning_games_mask]
-				cost, cost_win, cost_loss, params = red_model.train_model(Y, board, pieces, mask, reward)
+				cost, params = red_model.train_model(Y, V, board, pieces, mask)
 				minimums = params["mins"]
 				maximums = params["maxes"]
+				weights = params["weights"]
 				red_model.save_parameters(identifier)
 			else:
 				if train_red == "Y":
@@ -664,9 +718,9 @@ if input("Play game [Y/n]:") == "Y":
 				"boot_ver": bootstrap_version,
 				"cost_hist": float(cost),
 				"draw_pct": float(draw_pct),
-				"max_hist0": float(maximums[0]), "max_hist1": float(maximums[1]), "max_hist2": float(maximums[2]), "max_hist3": float(maximums[3]), "max_hist4": float(maximums[4]),
-				"min_hist0": float(minimums[0]), "min_hist1": float(minimums[1]), "min_hist2": float(minimums[2]), "min_hist3": float(minimums[3]), "min_hist4": float(minimums[4]),
+				"weights0": float(weights[0]), "weights1": float(weights[1]), "weights2": float(weights[2]), "weights3": float(weights[3]),
 			}
+			print(f"weights[0]: {weights[0]}, weights[1]: {weights[1]}, weights[2]: {weights[2]}, weights[3]: {weights[3]}, ")
 			update_plots(new_data)
 			save_plots(red_model.__class__.__name__ + ".json")
 			save_data()

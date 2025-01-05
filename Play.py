@@ -293,7 +293,7 @@ black_model = sm("black_model", identifier)
 black_model.load_checkpoint(f"black_model_{bootstrap_version}", identifier)
 red_player = Player(model = red_model, color = "Red") # create the red player assigning model and color
 black_player = Player(model = black_model, color = "Black") # create the black player assigning model and color
-game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = 0, side = "black")
+game = Game(red_player = red_player, black_player = black_player, jump_rule = jump_rule, number = 0, side = "Black")
 # Place pieces before entering the game loop
 update_game_state(game)
 piece_selected = False
