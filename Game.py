@@ -1,6 +1,9 @@
 import numpy as np
 from Board import Board
 import random
+from SimulationEdge import SimulationEdge
+import copy
+import pdb
 
 # Game class manages all game mechanics. The main program creates a new game,
 # assigns players to the game (which have already been given models), and issues the
@@ -23,6 +26,7 @@ class Game:
 		self.black_attempts = 0
 		self.black_moves = 0
 		self.moves_since_jump = 0
+		self.side = None
 		self.draw_max = int(random.random() * 300 + 100)
 		self.draw = False
 		self.win = False
@@ -32,11 +36,44 @@ class Game:
 				self.player = self.red_player
 			else:
 				self.player = self.black_player
-		elif side == "red":
+		elif side == "Red":
 			self.player = self.red_player
 		else:
 			self.player = self.black_player
 		
+	def get_game_state(self):
+		game_state = {}
+		game_state.update({"board": copy.deepcopy(self.board)})
+		game_state.update({"attempts": self.attempts})
+		game_state.update({"moves": self.moves})
+		game_state.update({"red_attempts": self.red_attempts})
+		game_state.update({"red_moves": self.red_moves})
+		game_state.update({"black_attempts": self.black_attempts})
+		game_state.update({"black_moves": self.black_moves})
+		game_state.update({"moves_since_jump": self.moves_since_jump})
+		game_state.update({"draw_max": self.draw_max})
+		game_state.update({"draw": self.draw})
+		game_state.update({"win": self.win})
+		game_state.update({"jump_piece_number": self.jump_piece_number})
+		game_state.update({"side": self.side})
+		return game_state
+	
+	def set_game_state(self, game_state):
+		self.board = game_state["board"]
+		self.attempts = game_state["attempts"]
+		self.moves = game_state["moves"]
+		self.red_attempts = game_state["red_attempts"]
+		self.red_moves = game_state["red_moves"]
+		self.black_attempts = game_state["black_attempts"]
+		self.black_moves = game_state["black_moves"]
+		self.moves_since_jump = game_state["moves_since_jump"]
+		self.draw_max = game_state["draw_max"]
+		self.draw = game_state["draw"]
+		self.win = game_state["win"]
+		self.jump_piece_number = game_state["jump_piece_number"]
+		self.side = game_state["side"]
+
+
 
 	def get_piece_positions(self):
 		red_pieces = {}
@@ -92,13 +129,13 @@ class Game:
 		return self.player.other_color
 	
 	def make_move(self, move, piece_number):
-		# print(self.player.color, "move ", piece_number, ":", move)
 		board_move = np.zeros((96), dtype = 'int') # create output vector placeholder with zeros
 		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves from the board
 		if np.max(move) != 0: # there are legal moves
 			board_move[(piece_number * 8):((piece_number * 8) + 8)] = move # insert an 8 element vector of the moves for the chosen piece into the correct spot in the board move vector
 			move_array = board_legal_moves * board_move # generate an array that masks the board move with legal moves to determine whether the move is legal
 			while np.count_nonzero(move_array) == 0: # if there are all zeros, it's not legal
+				pdb.set_trace()
 				# print("Checkers proposed illegal move!!")
 				board_move = np.zeros((96), dtype = 'int')
 				board_move[(piece_number * 8):((piece_number * 8) + 8)] = move
@@ -152,7 +189,6 @@ class Game:
 			self.win = True # declare a win
 			self.side = self.player.other_color # set the side to the other color (who won)
 		#game_history.close()
-
 		return self.win, self.draw
 
 	def other_player_count(self):
@@ -167,10 +203,18 @@ class Game:
 				
 	def generate_X_mask(self):
 		board_input, pieces_input = self.player.model.get_input_vector(self.board, self.player.color, jump_piece_number = self.jump_piece_number)
-		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule) # get legal moves (48,) for current board position (0: illegal, 1:legal, 2:jump-legal)
-		# Can't have this be 0 because the next line divides by zero
+		# board_input - multi-dimensional vector with the board position from the vantage point of self.player.color
+		# pieces input - 1-dimensional vector with pieces data
+
+		board_legal_moves = self.board.legal_moves(color = self.player.color, jump_piece_number = self.jump_piece_number, jump_rule = self.jump_rule)
+		# board_legal_moves - legal moves (96,) for current board position (0: illegal, 1:legal)
 
 		return board_input, pieces_input, board_legal_moves
+	
+	def make_simulation_edge(self, depth, root_color, move_vector = None):
+		simulation_edge = SimulationEdge(self, depth, root_color, move_vector) #make a simulationn edge from the current game state
+
+		return simulation_edge
 
 
 	def static_playtest(self):
