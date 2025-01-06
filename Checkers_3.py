@@ -364,13 +364,19 @@ if input("Play game [Y/n]:") == "Y":
 		load_plots(red_model.__class__.__name__ + ".json")
 	
 	stats = ["Create", "Play", "Train", "Main"]
-	training_stats = ["Init", "Forward", "Backward", "Bookkeeping", "Total"]
 	with open("stats.csv", mode="a", newline="") as file:
 		writer = csv.writer(file)
 		writer.writerow(stats)  # Write the list as a new row
+
+	training_stats = ["Init", "Forward", "Backward", "Bookkeeping", "Total"]
 	with open("training_stats.csv", mode="a", newline="") as file:
 		writer = csv.writer(file)
 		writer.writerow(training_stats)  # Write the list as a new row
+
+	simulation_stats = ["Traversal", "Depth", "Create Children", "Get Inputs", "Create Outputs", "Set UCBs"]
+	with open("simulation_stats.csv", mode="a", newline="") as file:
+		writer = csv.writer(file)
+		writer.writerow(simulation_stats)  # Write the list as a new row
 
 	while True:
 		stats = []
@@ -394,7 +400,6 @@ if input("Play game [Y/n]:") == "Y":
 		black_Y_parallel_batch = []
 		red_N_parallel_batch = []
 		black_N_parallel_batch = []
-		create_games_end = time.time()
 		games_set = train_games
 		batch_total_games = 0
 		game_value = np.full((1,0), 0.5)
@@ -438,13 +443,20 @@ if input("Play game [Y/n]:") == "Y":
 			for n, game in enumerate(games):
 				if game.player_color() == "Red": # game with a red move
 					red_game_set.append(game) # append to list of games with red moves
-					red_sim_edge_set.append(game.make_simulation_edge(depth, game.player_color))
 				else: #game with a black move
 					black_game_set.append(game) #append to list of games with black moves
-					black_sim_edge_set.append(game.make_simulation_edge(depth, game.player_color))
 
+
+			for n, game in enumerate(red_game_set):
+				red_sim_edge_set.append(game.make_simulation_edge(depth, game.player_color))
+
+			for n, game in enumerate(black_game_set):
+				black_sim_edge_set.append(game.make_simulation_edge(depth, game.player_color))
+
+			create_games_end = time.time()
 			create_games_time = create_games_end - create_games_start
 			stats.append(create_games_time)
+
 			play_games_start = time.time()
 			'''
 			Play all games in each set in parallel, moving through each step of making a move
@@ -475,6 +487,7 @@ if input("Play game [Y/n]:") == "Y":
 				depth = 0 # First traversal for this move
 					
 				'''Get input and mask vectors for all games for forward pass'''
+				sim_setup_start = time.time()
 				for n, sim_edge in enumerate(red_sim_edge_set):
 					'''
 					Step through each sim_edge in the red training batch. For each sim_edge, get the input vector (X) from
@@ -513,40 +526,86 @@ if input("Play game [Y/n]:") == "Y":
 				'''
 				set_outputs(red_sim_edge_set, red_model_policy_output, red_model_value_output, depth)
 				set_outputs(black_sim_edge_set, black_model_policy_output, black_model_value_output, depth)
-
+				sim_setup_end = time.time()
+				sim_setup_time = sim_setup_end - sim_setup_start
 
 				while traversal < exploration_traversals: # not yet enough traversals
 					depth = 0
 					while depth < exploration_depth: # not yet deep enough on this traversal
+						simulation_stats = []
+						simulation_stats.append(traversal)
+						simulation_stats.append(depth)
 						'''
 						with ProcessPoolExecutor(max_workers=12) as executor:
 							executor.map(create_children, red_game_set, itertools.repeat(depth))
 						with ProcessPoolExecutor(max_workers=12) as executor:
 							executor.map(create_children, black_game_set, itertools.repeat(depth))
 						'''
+						create_children_start = time.time()
+
 						create_children(red_sim_edge_set, depth)
 						create_children(black_sim_edge_set, depth)
 
+						create_children_end = time.time()
+						create_children_time = create_children_end - create_children_start
+						simulation_stats.append(create_children_time)
+
+						get_inputs_start = time.time()
+
 						red_edge_board_parallel, red_edge_pieces_parallel, red_edge_mask_parallel, red_number_parallel, red_index_parallel = get_child_inputs(red_sim_edge_set, depth)
+						black_edge_board_parallel, black_edge_pieces_parallel, black_edge_mask_parallel, black_number_parallel, black_index_parallel = get_child_inputs(black_sim_edge_set, depth)
+
+						get_inputs_end = time.time()
+						get_inputs_time = get_inputs_end - get_inputs_start
+						simulation_stats.append(get_inputs_time)
+
+						set_outputs_start = time.time()
+
 						if red_edge_board_parallel is not None and not np.array_equal(red_edge_board_parallel, np.array([[None]])) and red_edge_board_parallel.size != 0:
 							se_red_model_policy_output, se_red_model_value_output = red_model.forward_pass(red_edge_board_parallel, red_edge_pieces_parallel, red_edge_mask_parallel) # get matrix of vector probabilities for the next move in all red games
 							set_child_outputs(red_sim_edge_set, se_red_model_policy_output, se_red_model_value_output, red_number_parallel, red_index_parallel, depth)
-						set_child_UCBs(red_sim_edge_set, depth)
-
-						black_edge_board_parallel, black_edge_pieces_parallel, black_edge_mask_parallel, black_number_parallel, black_index_parallel = get_child_inputs(black_sim_edge_set, depth)
 						if black_edge_board_parallel is not None and not np.array_equal(black_edge_board_parallel, np.array([[None]])) and black_edge_board_parallel.size != 0:
 							se_black_model_policy_output, se_black_model_value_output = black_model.forward_pass(black_edge_board_parallel, black_edge_pieces_parallel, black_edge_mask_parallel) # get matrix of vector probabilities for the next move in all red games
 							set_child_outputs(black_sim_edge_set, se_black_model_policy_output, se_black_model_value_output, black_number_parallel, black_index_parallel, depth)
+
+						set_outputs_end = time.time()
+						set_outputs_time = set_outputs_end - set_outputs_start
+						simulation_stats.append(set_outputs_time)
+
+						set_UCBs_start = time.time()
+
+						set_child_UCBs(red_sim_edge_set, depth)
 						set_child_UCBs(black_sim_edge_set, depth)
 
+						set_UCBs_end = time.time()
+						set_UCBs_time = set_UCBs_end - set_UCBs_start
+						simulation_stats.append(set_UCBs_time)
+
+						with open("simulation_stats.csv", mode="a", newline="") as file:
+							writer = csv.writer(file)
+							writer.writerow(simulation_stats)  # Write the list as a new row
+
 						depth += 1
+
+					update_N_start = time.time()
+
 					update_N(red_sim_edge_set)
 					update_N(black_sim_edge_set)
 
+					update_N_end = time.time()
+					update_N_time = update_N_end - update_N_start
+
+					update_Q_start = time.time()
+
 					update_Q(red_sim_edge_set)
 					update_Q(black_sim_edge_set)
-					traversal += 1
 
+					update_Q_end = time.time()
+					update_Q_time = update_Q_end - update_Q_start
+
+					traversal += 1
+				
+				
 				red_Y_parallel, red_N_parallel = get_Y(red_sim_edge_set)
 				black_Y_parallel, black_N_parallel = get_Y(black_sim_edge_set)
 				'''Make move for all games based on probabilities'''
