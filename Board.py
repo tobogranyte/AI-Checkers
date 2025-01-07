@@ -67,7 +67,7 @@ class Board:
 			pieces = self.black_pieces
 		moves = np.zeros((96), dtype = 'int') # zero array to put the legal moves
 		if jump_piece_number: # this is the second, mandatory jump move after a first jump
-			moves[(jump_piece_number * 8):((jump_piece_number * 8) + 8)] = pieces[jump_piece_number].jump_moves(self).flatten()
+			moves[(jump_piece_number * 8):((jump_piece_number * 8) + 8)] = self.jump_moves(pieces[jump_piece_number]).flatten()
 			"""
 			If there is a jump piece, it means that this is the second move by this color, because the first was a jump.
 			Thus, the only legal move at this point is a jump. So it inserts the legal moves for this piece only into the
@@ -75,7 +75,7 @@ class Board:
 			"""
 		else:
 			for p in pieces:
-				moves[(p.number * 8):((p.number * 8) + 8)] = p.legal_moves(self).flatten() # insert legal moves for the selected piece into the move array
+				moves[(p.number * 8):((p.number * 8) + 8)] = self.piece_legal_moves(p).flatten() # insert legal moves for the selected piece into the move array
 			if np.max(moves * self.jump_mask) == 1 and jump_rule: # a jump is available and a jump rule (requiring the player to use a jump if availabe) is in effect
 				moves = moves * self.jump_mask # mask only jump moves for legal moves
 		return moves
@@ -96,7 +96,7 @@ class Board:
 			pieces = self.red_pieces
 		else:
 			pieces = self.black_pieces
-		legal_moves = pieces[piece_number].legal_moves(self)
+		legal_moves = self.piece_legal_moves(pieces[piece_number])
 		return legal_moves
 
 	def print_visual_state(self):
@@ -207,7 +207,7 @@ class Board:
 			state = self.black_state() # set the opposition positions
 			numbers = self.black_numbers # set the array with all the black piece number positions
 			opposition_numbers = np.flip(np.flip(self.red_numbers, axis = 0), axis = 1) # set the opposition array with all the red piece number positions flipped
-		masked_move = piece.legal_moves(self).flatten() * move # mask the move with legal moves for that piece
+		masked_move = self.piece_legal_moves(piece).flatten() * move # mask the move with legal moves for that piece
 		vertical = np.sum(masked_move.reshape(4,2), axis=1) # vertical array of move in y axis
 		horizontal = np.sum(masked_move.reshape(4,2), axis=0)
 		left_right = np.argmax(horizontal)
@@ -244,10 +244,10 @@ class Board:
 		piece_arrays = np.zeros(384, int)
 		if color == "Red":
 			for p in range (12):
-				piece_arrays[32*p:32*(p+1)] = self.red_pieces[p].spaces(self).flatten()
+				piece_arrays[32*p:32*(p+1)] = self.piece_spaces(self.red_pieces[p]).flatten()
 		else:
 			for p in range (12):
-				piece_arrays[32*p:32*(p+1)] = self.black_pieces[p].spaces(self).flatten()
+				piece_arrays[32*p:32*(p+1)] = self.piece_spaces(self.black_pieces[p]).flatten()
 		return piece_arrays
 
 	# return the color in a given x, y position from the vantage point of player
@@ -259,4 +259,223 @@ class Board:
 		else:
 			return "O"
 
+	'''
+	Methods that used to be in Piece class
+	'''
+	def piece_spaces(self, piece):
+		xOffset = np.zeros((4,2), int) # Array that will contain x offsets relative to the current x position. Two rows forward and two rows backward.
+		piece_spaces = np.ones((4,4,2), int)
+		# Array that will contain the board state for all four possible move directions, jump and regular.
+		if piece.in_play:
+			if piece.yPosition%2 == 0: # even row
+				xOffset = np.array([[-1, 1], [-1, 0], [-1, 0], [-1, 1]]) # generate x offsets for the forward, backward, jump and regular moves.
+			else: # odd row
+				xOffset = np.array([[-1, 1], [0, 1], [0, 1], [-1, 1]]) # generate x offsets for the forward, backward, jump and regular moves.
+			for p in range (2,0,-1):
+				if piece.yPosition + p <= 7 :
+					xTarget = piece.xPosition + xOffset[2 - p, 0]
+					if xTarget >= 0 and xTarget <= 3 :
+						piece_spaces[:, 2 - p, 0] = self.position_array(piece.color, piece.yPosition + p, xTarget)
+					xTarget = piece.xPosition + xOffset[2 - p, 1]
+					if xTarget >= 0 and xTarget <= 3 :
+						piece_spaces[:, 2 - p, 1] = self.position_array(piece.color, piece.yPosition + p, xTarget)
+			for p in range (1,3):
+				if piece.yPosition - p >= 0 :
+					xTarget = piece.xPosition + xOffset[1 + p, 0]
+					if xTarget >= 0 and xTarget <= 3 :
+						piece_spaces[:, 1 + p, 0] = self.position_array(piece.color, piece.yPosition - p, xTarget)
+					xTarget = piece.xPosition + xOffset[1 + p, 1]
+					if xTarget >= 0 and xTarget <= 3 :
+						piece_spaces[:, 1 + p, 1] = self.position_array(piece.color, piece.yPosition - p, xTarget)
+		return piece_spaces
+	
+	def forward_left(self, piece): # determine move value for forward left (0 = illegal, 1 = move, 2 = jump)
+		if piece.yPosition%2 == 0: # even row
+			if piece.xPosition == 0: # leftmost position
+				return np.array([[0],[0]]) # can't move forward left
+			else: #not the leftmost position
+				c = self.position_color((piece.yPosition + 1), (piece.xPosition - 1), piece.color) # color in forward left position
+				if piece.yPosition != 6: # can move up to two positions forward
+					c2 = self.position_color((piece.yPosition + 2), (piece.xPosition - 1), piece.color) #color in forward left jump position
+					if c  == piece.color: # forward left occupied by same color (no moves available)
+						return np.array([[0],[0]])
+					elif c == "O": # forward left unoccupied
+						return np.array([[0],[1]])
+					elif c2 == "O": # forward left jump unoccupied
+						return np.array([[1],[0]])
+					else: # no moves available
+						return np.array([[0],[0]])
+				else: # can move only move one position forward
+					if c != "O": # forward left occupied
+						return np.array([[0],[0]])
+					else: #forward left available
+						return np.array([[0],[1]])
+		elif  piece.yPosition == 7: # odd and last row
+			return np.array([[0],[0]]) # no possible forward moves
+		else: # not the last row
+			c = self.position_color((piece.yPosition + 1), (piece.xPosition), piece.color)
+			if piece.xPosition != 0: # odd and not the leftmost position
+				c2 = self.position_color((piece.yPosition + 2), (piece.xPosition - 1), piece.color)
+				if c  == piece.color:  # forward left occupied by same color (no moves available)
+					return np.array([[0],[0]])
+				elif c == "O":  # forward left unoccupied
+					return np.array([[0],[1]])
+				elif c2 == "O": # forward left jump unoccupied
+					return np.array([[1],[0]])
+				else: 
+					return np.array([[0],[0]])
+			else: # odd and leftmost position
+				if c != "O":
+					return np.array([[0],[0]])
+				else:
+					return np.array([[0],[1]])
 
+	def forward_right(self, piece): # determine move value for forward right (0 = illegal, 1 = move, 2 = jump)
+		if piece.yPosition%2 != 0: # odd row
+			if  piece.yPosition == 7: # last row
+				return np.array([[0],[0]]) # no possible forward moves
+			else:
+				if piece.xPosition == 3: # odd and rightmost position
+					return np.array([[0],[0]]) # can't move forward right
+				else: # odd and not the rightmost position
+					c = self.position_color((piece.yPosition + 1), (piece.xPosition + 1), piece.color)
+					c2 = self.position_color((piece.yPosition + 2), (piece.xPosition + 1), piece.color)
+					if c  == piece.color:
+						return np.array([[0],[0]])
+					elif c == "O":
+						return np.array([[0],[1]])
+					elif c2 == "O":
+						return np.array([[1],[0]])
+					else:
+						return np.array([[0],[0]])
+		else: #even row
+			c = self.position_color((piece.yPosition + 1), (piece.xPosition), piece.color)
+			if piece.xPosition != 3: # even and not rightmost position
+				if piece.yPosition != 6: # can move up to two positions forward
+					c2 = self.position_color((piece.yPosition + 2), (piece.xPosition + 1), piece.color)
+					if c  == piece.color:
+						return np.array([[0],[0]])
+					elif c == "O":
+						return np.array([[0],[1]])
+					elif c2 == "O":
+						return np.array([[1],[0]])
+					else:
+						return np.array([[0],[0]])
+				else:
+					if c != "O":
+						return np.array([[0],[0]])
+					else:
+						return np.array([[0],[1]])
+			else: # even and rightmost position
+				if c != "O":
+					return np.array([[0],[0]])
+				else:
+					return np.array([[0],[1]])
+
+	def backward_left(self, piece): # determine move value for backward left (0 = illegal, 1 = move, 2 = jump)
+		if piece.yPosition%2 == 0: # even row
+			if  piece.yPosition == 0: # even and first row
+				return np.array([[0],[0]]) # no possible backward moves
+			else: #even and not first row
+				if piece.xPosition == 0: # leftmost position
+					return np.array([[0],[0]]) # can't move backward left
+				else: #not the leftmost position
+					c = self.position_color((piece.yPosition - 1), (piece.xPosition - 1), piece.color) # color in backward left position
+					c2 = self.position_color((piece.yPosition - 2), (piece.xPosition - 1), piece.color) #color in forward left jump position
+					if c  == piece.color:
+						return np.array([[0],[0]])
+					elif c == "O":
+						return np.array([[1],[0]])
+					elif c2 == "O":
+						return np.array([[0],[1]])
+					else:
+						return np.array([[0],[0]])
+		else: # odd row
+			c = self.position_color((piece.yPosition - 1), (piece.xPosition), piece.color)
+			if piece.xPosition != 0: # odd and not the leftmost position
+				if piece.yPosition != 1: # can move up to two positions backward
+					c2 = self.position_color((piece.yPosition - 2), (piece.xPosition - 1), piece.color)
+					if c  == piece.color:
+						return np.array([[0],[0]])
+					elif c == "O":
+						return np.array([[1],[0]])
+					elif c2 == "O":
+						return np.array([[0],[1]])
+					else:
+						return np.array([[0],[0]])
+				else:
+					if c != "O":
+						return np.array([[1],[0]])
+					else:
+						return np.array([[0],[0]])
+			else: # odd and leftmost position
+				if c != "O":
+					return np.array([[0],[0]])
+				else:
+					return np.array([[1],[0]])
+
+	def backward_right(self, piece): # determine move value for backward right (0 = illegal, 1 = move, 2 = jump)
+		if piece.yPosition%2 != 0: # odd row
+			if piece.xPosition == 3: # odd and rightmost position
+				return np.array([[0],[0]]) # can't move backward right
+			else: # odd and not the rightmost position
+				c = self.position_color((piece.yPosition - 1), (piece.xPosition + 1), piece.color)
+				if piece.yPosition != 1: # odd and can move up to two positions backward 
+					c2 = self.position_color((piece.yPosition - 2), (piece.xPosition + 1), piece.color)
+					if c  == piece.color:
+						return np.array([[0],[0]])
+					elif c == "O":
+						return np.array([[1],[0]])
+					elif c2 == "O":
+						return np.array([[0],[1]])
+					else:
+						return np.array([[0],[0]])
+				else:
+					if c != "O":
+						return np.array([[0],[0]])
+					else:
+						return np.array([[1],[0]])
+		else: # even row
+			if piece.yPosition == 0: # first row
+				return np.array([[0],[0]])
+			c = self.position_color((piece.yPosition - 1), (piece.xPosition), piece.color)
+			if piece.xPosition != 3: # even and not rightmost position
+				c2 = self.position_color((piece.yPosition - 2), (piece.xPosition + 1), piece.color)
+				if c  == piece.color:
+					return np.array([[0],[0]])
+				elif c == "O":
+					return np.array([[1],[0]])
+				elif c2 == "O":
+					return np.array([[0],[1]])
+				else:
+					return np.array([[0],[0]])
+			else: # even and rightmost position
+				if c != "O":
+					return np.array([[0],[0]])
+				else:
+					return np.array([[1],[0]])
+
+	def piece_legal_moves(self, piece):
+		"""
+		Returns a [4,2] array in the following form:
+		[[0, 0], -> jump forward left, jump forward right
+    	[ 0, 0], -> move forward left, move forward right
+    	[ 0, 0], -> move backward left, move backward right
+    	[ 0, 0]] -> jump backward left, jump backward right
+		"""
+		m = np.zeros(8, dtype = int).reshape(4,2) # default 2x2 matrix is all zeros until a move is deterimined
+		if piece.in_play: # piece is still on the board
+			m[0:2, :] = np.append(self.forward_left(piece), self.forward_right(piece), axis=1) # update values for forward moves
+			if piece.king:
+				m[2:4, :] = np.append(self.backward_left(piece), self.backward_right(piece), axis = 1) # update values for backward moves if piece is king
+		return m
+	
+	def jump_moves(self, piece):
+		"""
+		Return only the jump rows (first and last rows) from legal moves. The rest are zeros."""
+		j = np.zeros(8, dtype = int).reshape(4,2)
+		m = self.piece_legal_moves(piece)
+		j[0,:] = m[0,:]
+		j[3,:] = m[3,:]
+		return j
+	
