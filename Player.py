@@ -1,5 +1,4 @@
 import numpy as np
-from Board import Board
 """
 Player class manages all moves for a given player. At the beginning of
 a session, two players are created, one for each side. Each player

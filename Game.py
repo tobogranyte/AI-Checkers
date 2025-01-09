@@ -2,6 +2,7 @@ import numpy as np
 from Board import Board
 import random
 from SimulationEdge import SimulationEdge
+from BoardSimulationEdge import BoardSimulationEdge
 import copy
 import pdb
 
@@ -200,7 +201,12 @@ class Game:
 	def stats(self):
 
 		return self.win, self.draw, self.side, self.board.piece_count("Red"), self.board.piece_count("Black"), self.red_player.move_count, self.black_player.move_count, self.red_player.illegal_move_count, self.black_player.illegal_move_count
-				
+
+	def generate_board_X_mask(self):
+		board_input, pieces_input = self.board.board_sim_edge.player.model.get_input_vector(self.board.board_sim_edge, self.board.board_sim_edge.player.color, jump_piece_number = self.board.board_sim_edge.jump_piece_number)
+		board_legal_moves = self.board.board_sim_edge.legal_moves(color = self.board.board_sim_edge.player.color)
+
+
 	def generate_X_mask(self):
 		board_input, pieces_input = self.player.model.get_input_vector(self.board, self.player.color, jump_piece_number = self.jump_piece_number)
 		# board_input - multi-dimensional vector with the board position from the vantage point of self.player.color
@@ -211,10 +217,15 @@ class Game:
 
 		return board_input, pieces_input, board_legal_moves
 	
-	def make_simulation_edge(self, depth, root_color, move_vector = None):
+	def make_simulation_edge(self, depth, root_color = None, move_vector = None):
 		simulation_edge = SimulationEdge(self, depth, root_color, move_vector) #make a simulationn edge from the current game state
 
 		return simulation_edge
+
+	def make_board_simulation_edge(self, depth, root_color = None, move_vector = None):
+		if root_color is None:
+			root_color = self.player_color()
+		self.board.make_board_simulation_edge(depth, root_color, self.red_player, self.black_player, self.jump_piece_number, self.red_moves, self.black_moves, self.number, self.player_color(), self.other_player_color(), self.player) #make a simulationn edge from the current game state
 
 
 	def static_playtest(self):

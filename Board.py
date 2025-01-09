@@ -1,5 +1,9 @@
 import numpy as np
 from Piece import Piece
+from BoardSimulationEdge import BoardSimulationEdge
+from GameState import GameState
+
+
 
 class Board:
 
@@ -17,6 +21,10 @@ class Board:
 			self.place_piece(self.red_pieces[p])
 			self.black_pieces.append(Piece(p, "Black", king = False, x = p%4, y = int(p/4), in_play = True))
 			self.place_piece(self.black_pieces[p])
+
+	def make_board_simulation_edge(self, depth, root_color, red_player, black_player, jump_piece_number, red_moves, black_moves, number, player_color, other_player_color, player):
+		game_state = GameState(self.state, self.red_pieces, self.black_pieces)
+		self.board_sim_edge = BoardSimulationEdge(game_state, depth, root_color, red_player, black_player, jump_piece_number, red_moves, black_moves, number, player_color, other_player_color, player)
 
 	def red_state(self): # return the objective board state
 		return self.state

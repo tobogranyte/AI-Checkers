@@ -15,7 +15,6 @@ import pdb
 import json
 from datetime import datetime
 import os
-from SimulationEdge import SimulationEdge
 
 def datetime_to_string(dt: datetime) -> str:
 	return dt.strftime('%Y%m%d%H%M%S')
@@ -445,11 +444,12 @@ if input("Play game [Y/n]:") == "Y":
 					black_game_set.append(game) #append to list of games with black moves
 
 			start_time = time.time()
+
 			for n, game in enumerate(red_game_set):
-				red_sim_edge_set.append(game.make_simulation_edge(depth, game.player_color))
+				game.make_board_simulation_edge(depth)
 
 			for n, game in enumerate(black_game_set):
-				black_sim_edge_set.append(game.make_simulation_edge(depth, game.player_color))
+				game.make_board_simulation_edge(depth)
 			end_time = time.time()
 			total = end_time - start_time
 			print(total)
@@ -496,9 +496,9 @@ if input("Play game [Y/n]:") == "Y":
 					the model and add it to the appropriate location in the red_X_batch.
 					Also for each sim_edge, get the Y (legal moves) and add it to the red_Y_batch.
 					'''
-					red_move_numbers[:,n] = sim_edge.get_red_moves(depth) + 1 # add what move number this is to this sample in the training batch. For training.
-					red_game_numbers[:,n] = sim_edge.get_number() # the sim_edge number of this sample in the batch of sim_edges being played
-					board, pieces, mask = sim_edge.generate_X_mask(depth) # For training and forward pass.
+					red_move_numbers[:,n] = game.board.board_sim_edge.get_red_moves(depth) + 1 # add what move number this is to this sample in the training batch. For training.
+					red_game_numbers[:,n] = game.board.board_sim_edge.number # the sim_edge number of this sample in the batch of sim_edges being played
+					board, pieces, mask = game.generate_board_X_mask(depth) # For training and forward pass.
 					red_pieces_parallel[:,n] = pieces # insert X as a column to the parallel input
 					red_board_parallel[n] = board
 					red_mask_parallel[:,n] = mask # insert mask as a column to the parallel non-normalized label
@@ -508,8 +508,8 @@ if input("Play game [Y/n]:") == "Y":
 					the model and add it to the appropriate location in the black_X_batch.
 					Also for each sim_edge, get the Y (legal moves) and add it to the black_Y_batch.
 					'''
-					black_move_numbers[:,n] = sim_edge.get_black_moves(depth) + 1
-					black_game_numbers[:,n] = sim_edge.get_number()
+					black_move_numbers[:,n] = game.board.board_sim_edge.get_black_moves(depth) + 1
+					black_game_numbers[:,n] = game.board.board_sim_edge.number
 					board, pieces, mask = sim_edge.generate_X_mask(depth)
 					black_board_parallel[n] = board
 					black_pieces_parallel[:,n] = pieces
